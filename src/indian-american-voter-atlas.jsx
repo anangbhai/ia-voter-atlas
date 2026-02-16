@@ -1,5 +1,78 @@
 import { useState, useEffect } from "react";
 
+const CONTACT_EMAIL = "anang+voteratlas@gmail.com";
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════════
+
+const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
+const SUPABASE_ANON = "REDACTED";
+
+async function supaFetch(table) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
+    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+  });
+  if (!res.ok) throw new Error(`${table}: ${res.status}`);
+  return res.json();
+}
+
+// snake_case → camelCase
+function toCamel(obj) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const cc = k.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+    out[cc] = v;
+  }
+  return out;
+}
+
+// Table-specific mappers (where DB column names don't match JSX field names)
+function mapDistrict(row) {
+  const d = toCamel(row);
+  // cook2026 came from cook_2026 → cook2026 ✓
+  // cookPvi needs to be cookPVI
+  if (d.cookPvi !== undefined) { d.cookPVI = d.cookPvi; delete d.cookPvi; }
+  return d;
+}
+function mapSenate(row) {
+  const r = toCamel(row);
+  if (r.trumpMargin2024 !== undefined) { r.trumpMargin2024 = r.trumpMargin2024; }
+  return r;
+}
+function mapFbi(row) { return toCamel(row); }
+function mapIncident(row) { const r = toCamel(row); delete r.id; return r; }
+function mapDiscourse(row) { const r = toCamel(row); delete r.id; return r; }
+function mapNarrative(row) { const r = toCamel(row); delete r.id; return r; }
+function mapPresVote(row) { return toCamel(row); }
+function mapGenderAge(row) {
+  const r = toCamel(row);
+  // demoGroup → group
+  if (r.demoGroup !== undefined) { r.group = r.demoGroup; delete r.demoGroup; }
+  delete r.id;
+  return r;
+}
+function mapPartyId(row) { return toCamel(row); }
+function mapIssue(row) { const r = toCamel(row); delete r.id; return r; }
+function mapPrecinct(row) {
+  const r = toCamel(row);
+  // description → desc
+  if (r.description !== undefined) { r.desc = r.description; delete r.description; }
+  // biden2020 / trump2024 come through correctly from snake
+  delete r.id;
+  return r;
+}
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < breakpoint : false);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ═══════════════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════════════
@@ -341,12 +414,12 @@ function Badge({ children, color = C.textMuted, bg = C.surfaceAlt }) {
   }}>{children}</span>;
 }
 
-function StatBox({ label, value, sub, accent }) {
+function StatBox({ label, value, sub, accent, compact }) {
   return (
-    <div style={{ padding: "14px 16px" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: font.mono, color: accent || C.navy, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>{sub}</div>}
+    <div style={{ padding: compact ? "10px 12px" : "14px 16px" }}>
+      <div style={{ fontSize: compact ? 9 : 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: compact ? 4 : 6 }}>{label}</div>
+      <div style={{ fontSize: compact ? 22 : 28, fontWeight: 800, fontFamily: font.mono, color: accent || C.navy, lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: compact ? 10 : 11, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -399,15 +472,57 @@ export default function IndianAmericanVoterAtlas() {
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
   const [loaded, setLoaded] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Live data state — initialized with hardcoded defaults, overwritten by Supabase
+  const [districts, setDistricts] = useState(DISTRICTS);
+  const [senateRaces, setSenateRaces] = useState(SENATE_RACES);
+  const [fbiTrendData, setFbiTrendData] = useState(FBI_TREND_DATA);
+  const [templeIncidents, setTempleIncidents] = useState(TEMPLE_INCIDENTS);
+  const [discourseEvents, setDiscourseEvents] = useState(DISCOURSE_EVENTS);
+  const [narrativeItems, setNarrativeItems] = useState(NARRATIVE_ITEMS);
+  const [presVoteTrend, setPresVoteTrend] = useState(PRES_VOTE_TREND);
+  const [genderAgeVote, setGenderAgeVote] = useState(GENDER_AGE_VOTE);
+  const [partyId, setPartyId] = useState(PARTY_ID);
+  const [topIssues, setTopIssues] = useState(TOP_ISSUES);
+  const [precinctSwings, setPrecinctSwings] = useState(PRECINCT_SWINGS);
 
   useEffect(() => { setLoaded(true); }, []);
+
+  // Fetch from Supabase — silent fallback to hardcoded data on error
+  useEffect(() => {
+    async function load() {
+      try {
+        const [dist, sen, fbi, inc, disc, narr, pres, gender, pid, issues, prec] = await Promise.all([
+          supaFetch("districts"), supaFetch("senate_races"), supaFetch("fbi_trend_data"),
+          supaFetch("temple_incidents"), supaFetch("discourse_events"), supaFetch("narrative_items"),
+          supaFetch("pres_vote_trend"), supaFetch("gender_age_vote"), supaFetch("party_id"),
+          supaFetch("top_issues"), supaFetch("precinct_swings"),
+        ]);
+        if (dist.length) setDistricts(dist.map(mapDistrict));
+        if (sen.length) setSenateRaces(sen.map(mapSenate));
+        if (fbi.length) setFbiTrendData(fbi.map(mapFbi));
+        if (inc.length) setTempleIncidents(inc.map(mapIncident));
+        if (disc.length) setDiscourseEvents(disc.map(mapDiscourse));
+        if (narr.length) setNarrativeItems(narr.map(mapNarrative));
+        if (pres.length) setPresVoteTrend(pres.map(mapPresVote));
+        if (gender.length) setGenderAgeVote(gender.map(mapGenderAge));
+        if (pid.length) setPartyId(pid.map(mapPartyId));
+        if (issues.length) setTopIssues(issues.map(mapIssue));
+        if (prec.length) setPrecinctSwings(prec.map(mapPrecinct));
+      } catch (e) {
+        console.warn("Supabase fetch failed, using defaults:", e.message);
+      }
+    }
+    load();
+  }, []);
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === "desc" ? "asc" : "desc");
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  let sortedDistricts = [...DISTRICTS];
+  let sortedDistricts = [...districts];
   if (filterCompetitive) sortedDistricts = sortedDistricts.filter(d => d.cook2026.includes("Lean") || d.cook2026.includes("Toss") || d.cook2026.includes("Special"));
   sortedDistricts.sort((a, b) => {
     let av = a[sortKey], bv = b[sortKey];
@@ -416,7 +531,7 @@ export default function IndianAmericanVoterAtlas() {
     return sortDir === "desc" ? bv - av : av - bv;
   });
 
-  let sortedSenate = [...SENATE_RACES].sort((a, b) => {
+  let sortedSenate = [...senateRaces].sort((a, b) => {
     if (senateSortKey === "rating") return (ratingOrder[a.rating] ?? 5) - (ratingOrder[b.rating] ?? 5);
     if (senateSortKey === "indianPop") return b.indianPop - a.indianPop;
     return a.state.localeCompare(b.state);
@@ -440,19 +555,19 @@ export default function IndianAmericanVoterAtlas() {
 
       {/* HEADER */}
       <header style={{
-        background: C.navy, color: "#FFFFFF", padding: "28px 32px 20px",
+        background: C.navy, color: "#FFFFFF", padding: isMobile ? "20px 16px 16px" : "28px 32px 20px",
         borderBottom: `3px solid ${C.saffron}`
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, fontFamily: font.display, letterSpacing: -0.5 }}>
+          <div style={{ display: "flex", alignItems: isMobile ? "start" : "baseline", gap: isMobile ? 6 : 12, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, fontWeight: 800, fontFamily: font.display, letterSpacing: -0.5 }}>
               Indian American Voter Atlas
             </h1>
-            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: font.mono, color: "#FCD34D", letterSpacing: 1, textTransform: "uppercase" }}>
+            <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: 600, fontFamily: font.mono, color: "#FCD34D", letterSpacing: 1, textTransform: "uppercase" }}>
               2026 Election Cycle
             </span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600 }}>
+          <p style={{ margin: "6px 0 0", fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600 }}>
             District-level political intelligence for the fastest-growing electorate in America
           </p>
         </div>
@@ -464,10 +579,10 @@ export default function IndianAmericanVoterAtlas() {
         position: "sticky", top: 0, zIndex: 100,
         boxShadow: "0 1px 3px rgba(30,45,61,0.04)",
       }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: "14px 20px", fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
+              padding: isMobile ? "10px 12px" : "14px 20px", fontSize: isMobile ? 11 : 13, fontWeight: tab === t.key ? 700 : 500,
               fontFamily: font.body, border: "none", cursor: "pointer",
               background: "transparent",
               color: tab === t.key ? C.navy : C.textMuted,
@@ -479,7 +594,7 @@ export default function IndianAmericanVoterAtlas() {
       </nav>
 
       {/* CONTENT */}
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px 60px" }}>
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "20px 12px 48px" : "28px 24px 60px" }}>
 
         {/* ═══ HOUSE TAB ═══ */}
         {tab === "house" && (
@@ -519,6 +634,8 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             <Card>
+              {/* Desktop table */}
+              {!isMobile && <>
               {/* Table header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "68px 1fr 64px 76px 108px 100px 100px", gap: "0 8px",
@@ -562,6 +679,58 @@ export default function IndianAmericanVoterAtlas() {
                   )}
                 </div>
               ))}
+              </>}
+
+              {/* Mobile cards */}
+              {isMobile && (
+                <div style={{ display: "grid", gap: 0 }}>
+                  {sortedDistricts.map((d, i) => (
+                    <div key={d.id} onClick={() => setExpandedRow(expandedRow === d.id ? null : d.id)}
+                      style={{
+                        padding: "14px 16px", cursor: "pointer",
+                        borderBottom: `1px solid ${C.borderLight}`,
+                        background: expandedRow === d.id ? C.saffronBg : i % 2 === 0 ? C.surface : C.surfaceAlt,
+                      }}>
+                      {/* Row 1: District + Rep + Rating */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontFamily: font.mono, fontWeight: 700, fontSize: 15, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</span>
+                          <span style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{d.rep}</span>
+                          {d.indianRep && <span style={{ fontSize: 9, color: C.saffronText, fontWeight: 700, fontFamily: font.mono }}>IA</span>}
+                          {d.strategic && <span style={{ fontSize: 9, color: C.positive, fontWeight: 700 }}>★</span>}
+                        </div>
+                        <Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge>
+                      </div>
+
+                      {/* Row 2: Stats */}
+                      <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 12 }}>
+                        <span><span style={{ color: C.textMuted, fontFamily: font.mono }}>Indian:</span> <span style={{ fontWeight: 700, color: d.indianPct > 6 ? C.saffronText : C.text }}>{d.indianPct}%</span></span>
+                        <span><span style={{ color: C.textMuted, fontFamily: font.mono }}>Pop:</span> <span style={{ fontWeight: 600 }}>{(d.indianPop / 1000).toFixed(0)}K</span></span>
+                      </div>
+
+                      {/* Row 3: Bars side by side */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density</div>
+                          <DensityBar score={d.densityScore} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion</div>
+                          <PersuasionBar score={d.persuasionScore} />
+                        </div>
+                      </div>
+
+                      {/* Expanded detail */}
+                      {expandedRow === d.id && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
+                          <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
+                          <br />{d.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
         )}
@@ -638,13 +807,13 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Top stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 24 }}>
               {[
                 { label: "Eligible Voters", value: ELECTION_KEY_STATS.eligible, sub: "Of 5.4M Indian Americans", accent: C.navy },
                 { label: "Harris 2024", value: ELECTION_KEY_STATS.harris, sub: "Down from 68% (Biden 2020)", accent: C.dem },
                 { label: "Trump 2024", value: ELECTION_KEY_STATS.trump, sub: "Up from 22% in 2020", accent: C.gop },
                 { label: "Young Men for Trump", value: ELECTION_KEY_STATS.youngMenTrump, sub: "Was 26% in 2020 — a 22pt swing", accent: C.saffron },
-              ].map((s, i) => <Card key={i}><StatBox {...s} /></Card>)}
+              ].map((s, i) => <Card key={i}><StatBox {...s} compact={isMobile} /></Card>)}
             </div>
 
             {/* Presidential vote trend chart */}
@@ -653,9 +822,9 @@ export default function IndianAmericanVoterAtlas() {
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Indian American Presidential Vote (2004–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 20px" }}>Sources: NAAS (2004–2016), Carnegie IAAS (2020, 2024)</p>
 
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 12, padding: "20px 0" }}>
-                  {PRES_VOTE_TREND.map((d) => {
-                    const chartH = 180;
+                <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 6 : 12, padding: "20px 0" }}>
+                  {presVoteTrend.map((d) => {
+                    const chartH = isMobile ? 120 : 180;
                     return (
                     <div key={d.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: chartH, width: "100%", justifyContent: "center" }}>
@@ -674,8 +843,8 @@ export default function IndianAmericanVoterAtlas() {
                           <span style={{ position: "absolute", top: -18, width: "100%", textAlign: "center", fontSize: 10, fontWeight: 700, fontFamily: font.mono, color: C.gopText }}>{d.gop}%</span>
                         </div>
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: C.text }}>{d.year}</div>
-                      <div style={{ fontSize: 9, color: C.textMuted, textAlign: "center", lineHeight: 1.2 }}>{d.label}</div>
+                      <div style={{ fontSize: isMobile ? 10 : 12, fontWeight: 700, fontFamily: font.mono, color: C.text }}>{d.year}</div>
+                      <div style={{ fontSize: isMobile ? 8 : 9, color: C.textMuted, textAlign: "center", lineHeight: 1.2 }}>{d.label}</div>
                     </div>
                   );
                   })}
@@ -699,21 +868,41 @@ export default function IndianAmericanVoterAtlas() {
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: Carnegie IAAS 2024 · Shift = change in Trump support from 2020</p>
 
                 <div style={{ display: "grid", gap: 8 }}>
-                  {GENDER_AGE_VOTE.map((g, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 16px", background: g.flag ? C.saffronBg : C.surfaceAlt, borderRadius: 8, border: g.flag ? `1px solid ${C.saffron}` : `1px solid ${C.borderLight}` }}>
-                      <div style={{ width: 120, fontWeight: 600, fontSize: 13, color: C.text }}>{g.group}</div>
-                      <div style={{ flex: 1, display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                  {genderAgeVote.map((g, i) => (
+                    <div key={i} style={{ padding: isMobile ? "10px 12px" : "12px 16px", background: g.flag ? C.saffronBg : C.surfaceAlt, borderRadius: 8, border: g.flag ? `1px solid ${C.saffron}` : `1px solid ${C.borderLight}` }}>
+                      {isMobile ? (
+                        <>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <span style={{ fontWeight: 600, fontSize: 12, color: C.text }}>{g.group}</span>
+                            <Badge color={g.flag ? C.saffron : C.textMuted} bg={g.flag ? C.saffronLight : C.surfaceAlt}>{g.shift}</Badge>
+                          </div>
+                          <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                            </div>
+                            <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                            </div>
+                            <div style={{ flex: 1, background: C.borderLight }} />
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <div style={{ width: 120, fontWeight: 600, fontSize: 13, color: C.text }}>{g.group}</div>
+                          <div style={{ flex: 1, display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                            </div>
+                            <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                            </div>
+                            <div style={{ flex: 1, background: C.borderLight }} />
+                          </div>
+                          <div style={{ width: 90, textAlign: "right" }}>
+                            <Badge color={g.flag ? C.saffron : C.textMuted} bg={g.flag ? C.saffronLight : C.surfaceAlt}>{g.shift}</Badge>
+                          </div>
                         </div>
-                        <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
-                        </div>
-                        <div style={{ flex: 1, background: C.borderLight }} />
-                      </div>
-                      <div style={{ width: 90, textAlign: "right" }}>
-                        <Badge color={g.flag ? C.saffron : C.textMuted} bg={g.flag ? C.saffronLight : C.surfaceAlt}>{g.shift}</Badge>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -727,12 +916,12 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Two column: Party ID shift + Top Issues */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
               {/* Party ID */}
               <Card>
                 <div style={{ padding: "20px 24px" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>Party Identification Shift</h3>
-                  {PARTY_ID.map((p, i) => (
+                  {partyId.map((p, i) => (
                     <div key={i} style={{ marginBottom: i === 0 ? 10 : 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, marginBottom: 4 }}>{p.year}</div>
                       <div style={{ display: "flex", height: 28, borderRadius: 6, overflow: "hidden", gap: 2 }}>
@@ -758,7 +947,7 @@ export default function IndianAmericanVoterAtlas() {
               <Card>
                 <div style={{ padding: "20px 24px" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>Top Issues for Indian American Voters</h3>
-                  {TOP_ISSUES.map((iss, i) => (
+                  {topIssues.map((iss, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                       <div style={{ flex: 1, fontSize: 12, color: C.text, fontWeight: i < 3 ? 600 : 400 }}>{iss.issue}</div>
                       <div style={{ width: 140 }}>
@@ -783,7 +972,7 @@ export default function IndianAmericanVoterAtlas() {
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Sources: County clerk certified results, Catalist, Diya TV, precinct-level analysis (Cornell Law / Siddharth Khurana)</p>
 
                 <div style={{ display: "grid", gap: 8 }}>
-                  {PRECINCT_SWINGS.map((p, i) => (
+                  {precinctSwings.map((p, i) => (
                     <div key={i} style={{ padding: "14px 18px", background: i % 2 === 0 ? C.surface : C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 6 }}>
                         <div>
@@ -803,7 +992,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* What drove the shift + Bounceback */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
               <Card>
                 <div style={{ padding: "20px 24px" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: font.display, margin: "0 0 12px", color: C.navy }}>What Drove the Shift</h3>
@@ -873,7 +1062,7 @@ export default function IndianAmericanVoterAtlas() {
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>FBI Reported Incidents by Bias Category (2015–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: FBI UCR/NIBRS · Anti-Sikh tracking began 2015</p>
                 <div style={{ display: "flex", gap: 3, alignItems: "end", minHeight: 140, marginBottom: 12 }}>
-                  {FBI_TREND_DATA.map(d => {
+                  {fbiTrendData.map(d => {
                     const max = 746;
                     return (
                       <div key={d.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -898,13 +1087,13 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Stat boxes */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 24 }}>
               {[
                 { label: "Anti-Asian 2024", value: "400", sub: "Still 3× pre-pandemic average", accent: C.red },
                 { label: "Anti-Sikh 2024", value: "142", sub: "3rd most targeted faith group", accent: C.saffron },
                 { label: "Anti-Hindu 2024", value: "38", sub: "+100% since 2019", accent: C.navy },
                 { label: "Temple Attacks", value: "10+", sub: "Since 2022, with coordinated pattern", accent: C.text },
-              ].map((s, i) => <Card key={i}><StatBox {...s} /></Card>)}
+              ].map((s, i) => <Card key={i}><StatBox {...s} compact={isMobile} /></Card>)}
             </div>
 
             {/* Incident log */}
@@ -925,7 +1114,7 @@ export default function IndianAmericanVoterAtlas() {
               </div>
 
               <div style={{ display: "grid", gap: 8 }}>
-                {TEMPLE_INCIDENTS
+                {templeIncidents
                   .filter(inc => hateFilter === "all" ? true : hateFilter === "critical" ? inc.severity === "critical" : inc.bias.includes(hateFilter))
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((inc, i) => (
@@ -975,8 +1164,8 @@ export default function IndianAmericanVoterAtlas() {
             {/* Sub-navigation */}
             <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${C.border}` }}>
               {[
-                { key: "timeline", label: "Event Timeline", count: DISCOURSE_EVENTS.length },
-                { key: "narratives", label: "Narrative Tracker", count: NARRATIVE_ITEMS.length },
+                { key: "timeline", label: "Event Timeline", count: discourseEvents.length },
+                { key: "narratives", label: "Narrative Tracker", count: narrativeItems.length },
               ].map(s => (
                 <button key={s.key} onClick={() => setDiscourseSection(s.key)} style={{
                   padding: "10px 20px", fontSize: 13, fontWeight: discourseSection === s.key ? 700 : 500,
@@ -1015,7 +1204,7 @@ export default function IndianAmericanVoterAtlas() {
               {/* Vertical line */}
               <div style={{ position: "absolute", left: 9, top: 8, bottom: 8, width: 2, background: C.borderLight }} />
 
-              {DISCOURSE_EVENTS
+              {discourseEvents
                 .filter(e => discourseFilter === "all" || e.type === discourseFilter)
                 .map((evt, i) => {
                   const dotColor = evt.valence === "positive" ? C.positive : evt.valence === "negative" ? C.negative : C.textMuted;
@@ -1085,7 +1274,7 @@ export default function IndianAmericanVoterAtlas() {
               </div>
 
               <div style={{ display: "grid", gap: 16 }}>
-                {NARRATIVE_ITEMS.map((n, i) => (
+                {narrativeItems.map((n, i) => (
                   <Card key={i} style={{ borderLeft: `3px solid ${
                     n.intensity === "high" ? C.saffron : n.intensity === "medium" ? C.navy : C.borderLight
                   }` }}>
@@ -1216,17 +1405,17 @@ export default function IndianAmericanVoterAtlas() {
 
             {/* RANKED DISTRICTS — SIDE BY SIDE */}
             <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>District Rankings</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
               {/* Density rankings */}
               <Card>
                 <div style={{ padding: "14px 18px 8px", borderBottom: `1px solid ${C.borderLight}` }}>
                   <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.saffronText, fontFamily: font.mono }}>BY DENSITY SCORE</h4>
                 </div>
                 <div style={{ padding: "4px 0" }}>
-                  {[...DISTRICTS].sort((a, b) => b.densityScore - a.densityScore).map((d, i) => (
+                  {[...districts].sort((a, b) => b.densityScore - a.densityScore).map((d, i) => (
                     <div key={d.id} style={{
                       display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < DISTRICTS.length - 1 ? `1px solid ${C.borderLight}` : "none",
+                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
                     }}>
                       <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? C.saffronText : C.textMuted, textAlign: "right" }}>{i + 1}</div>
                       <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
@@ -1242,10 +1431,10 @@ export default function IndianAmericanVoterAtlas() {
                   <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#6D28D9", fontFamily: font.mono }}>BY PERSUASION SCORE</h4>
                 </div>
                 <div style={{ padding: "4px 0" }}>
-                  {[...DISTRICTS].sort((a, b) => b.persuasionScore - a.persuasionScore).map((d, i) => (
+                  {[...districts].sort((a, b) => b.persuasionScore - a.persuasionScore).map((d, i) => (
                     <div key={d.id} style={{
                       display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < DISTRICTS.length - 1 ? `1px solid ${C.borderLight}` : "none",
+                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
                     }}>
                       <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? "#6D28D9" : C.textMuted, textAlign: "right" }}>{i + 1}</div>
                       <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
@@ -1278,12 +1467,24 @@ export default function IndianAmericanVoterAtlas() {
       </main>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "24px 32px", background: C.surface }}>
+      <footer style={{ borderTop: `1px solid ${C.border}`, padding: isMobile ? "20px 16px" : "24px 32px", background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, lineHeight: 1.8 }}>
             Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, AAPI Data, FBI UCR<br />
             Methodology: Community Density Index v1.0 · Persuasion Index v1.0 · Not affiliated with any political campaign or party<br />
             Published by <span style={{ color: C.saffronText }}>Anang Mittal</span> · Built for civic engagement and public interest research
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <a href={`mailto:${CONTACT_EMAIL}`} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 12, fontWeight: 600, fontFamily: font.body,
+              color: C.action, textDecoration: "none",
+              padding: "6px 14px", borderRadius: 6,
+              border: `1px solid ${C.action}`,
+              transition: "all 0.15s",
+            }}>
+              ✉ Contact & Feature Requests
+            </a>
           </div>
         </div>
       </footer>
