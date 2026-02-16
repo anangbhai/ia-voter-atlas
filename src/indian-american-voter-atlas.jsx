@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 const CONTACT_EMAIL = "anang+voteratlas@gmail.com";
 
@@ -396,6 +398,110 @@ function getRatingBg(r) {
 const ratingOrder = { "Toss Up": 0, "Lean R": 1, "Lean D": 1, "Likely R": 2, "Likely D": 2, "Special Election": 3, "Solid R": 4, "Solid D": 4 };
 
 // ═══════════════════════════════════════════════════════════
+// DISTRICT COORDINATES (approximate center of each CD)
+// ═══════════════════════════════════════════════════════════
+
+const DISTRICT_COORDS = {
+  "CA-17": [37.36, -121.97], "NJ-07": [40.63, -74.55], "IL-08": [42.03, -88.08],
+  "CA-06": [38.58, -121.49], "TX-22": [29.62, -95.64], "NJ-11": [40.86, -74.40],
+  "VA-10": [39.04, -77.49], "WA-07": [47.61, -122.33], "TX-10": [30.27, -96.40],
+  "MI-13": [42.33, -83.05], "NJ-06": [40.52, -74.35], "GA-07": [33.96, -84.07],
+  "NY-03": [40.76, -73.58], "PA-06": [40.03, -75.61], "NC-09": [35.23, -80.84],
+  "TX-24": [32.81, -96.95], "CA-16": [37.34, -121.89], "NJ-12": [40.35, -74.66],
+  "VA-11": [38.83, -77.28], "NY-04": [40.72, -73.56], "CA-14": [37.70, -121.93],
+  "NJ-05": [41.00, -74.15], "MD-08": [39.08, -77.15], "CA-32": [34.19, -118.53],
+};
+
+// ═══════════════════════════════════════════════════════════
+// MAP COMPONENT
+// ═══════════════════════════════════════════════════════════
+
+function FitBounds({ bounds }) {
+  const map = useMap();
+  useEffect(() => {
+    if (bounds && bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+  }, [bounds, map]);
+  return null;
+}
+
+function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
+  const bounds = useMemo(() => {
+    const coords = districts.map(d => DISTRICT_COORDS[d.id]).filter(Boolean);
+    return coords.length ? coords : [[25, -125], [50, -65]];
+  }, [districts]);
+
+  const getColor = (d) => {
+    if (colorMode === "persuasion") {
+      return d.persuasionScore >= 80 ? "#7C3AED" : d.persuasionScore >= 60 ? "#8B5CF6" : "#C4B5FD";
+    }
+    if (colorMode === "party") {
+      return d.party === "D" ? C.dem : C.gop;
+    }
+    // default: density
+    return d.densityScore > 80 ? "#B45309" : d.densityScore > 60 ? C.saffron : "#FBBF24";
+  };
+
+  const getRadius = (d) => {
+    const base = isMobile ? 7 : 10;
+    const pop = d.indianPop || 30000;
+    return base + Math.sqrt(pop / 10000) * (isMobile ? 2 : 3);
+  };
+
+  return (
+    <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${C.border}` }}>
+      <MapContainer
+        center={[37.5, -96]}
+        zoom={4}
+        style={{ height: isMobile ? 300 : 420, width: "100%", background: C.bg }}
+        scrollWheelZoom={false}
+        zoomControl={!isMobile}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        />
+        <FitBounds bounds={bounds} />
+        {districts.map(d => {
+          const coord = DISTRICT_COORDS[d.id];
+          if (!coord) return null;
+          const isSelected = selectedId === d.id;
+          return (
+            <CircleMarker
+              key={d.id}
+              center={coord}
+              radius={getRadius(d)}
+              pathOptions={{
+                fillColor: getColor(d),
+                fillOpacity: isSelected ? 1 : 0.7,
+                color: isSelected ? C.navy : "#fff",
+                weight: isSelected ? 3 : 1.5,
+              }}
+              eventHandlers={{ click: () => onSelect(d.id) }}
+            >
+              <Popup>
+                <div style={{ fontFamily: font.body, minWidth: 180 }}>
+                  <div style={{ fontFamily: font.mono, fontWeight: 700, fontSize: 15, color: d.party === "D" ? C.dem : C.gop, marginBottom: 2 }}>{d.id}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+                    {d.rep}
+                    {d.indianRep && <span style={{ marginLeft: 4, fontSize: 9, color: C.saffronText, fontWeight: 700 }}>IA</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>
+                    {d.metro}<br />
+                    Indian pop: {(d.indianPop / 1000).toFixed(0)}K ({d.indianPct}%)<br />
+                    Rating: {d.cook2026}<br />
+                    Density: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong> · Persuasion: <strong style={{ color: "#6D28D9" }}>{d.persuasionScore}</strong>
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+      </MapContainer>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // COMPONENTS
 // ═══════════════════════════════════════════════════════════
 
@@ -471,6 +577,7 @@ export default function IndianAmericanVoterAtlas() {
   const [expandedIncident, setExpandedIncident] = useState(null);
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
+  const [mapColorMode, setMapColorMode] = useState("density");
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
 
@@ -631,6 +738,68 @@ export default function IndianAmericanVoterAtlas() {
             <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: C.textMuted }}>
               <span><span style={{ color: C.saffronText, fontWeight: 700, fontFamily: font.mono }}>IA</span> = Indian American member</span>
               <span><span style={{ color: C.positive, fontWeight: 700 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, etc.)</span>
+            </div>
+
+            {/* MAP */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>District Map</h3>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[
+                    { key: "density", label: "Density", color: C.saffron },
+                    { key: "persuasion", label: "Persuasion", color: "#7C3AED" },
+                    { key: "party", label: "Party", color: C.navy },
+                  ].map(m => (
+                    <button key={m.key} onClick={() => setMapColorMode(m.key)} style={{
+                      padding: "4px 10px", fontSize: 10, borderRadius: 5, fontWeight: 600,
+                      fontFamily: font.body, cursor: "pointer", transition: "all 0.15s",
+                      border: `1px solid ${mapColorMode === m.key ? m.color : C.border}`,
+                      background: mapColorMode === m.key ? (m.key === "density" ? C.saffronBg : m.key === "persuasion" ? "#EDE9FE" : C.navyLight) : C.surface,
+                      color: mapColorMode === m.key ? m.color : C.textSecondary,
+                    }}>{m.label}</button>
+                  ))}
+                </div>
+              </div>
+              <DistrictMap
+                districts={sortedDistricts}
+                colorMode={mapColorMode}
+                selectedId={expandedRow}
+                onSelect={(id) => setExpandedRow(expandedRow === id ? null : id)}
+                isMobile={isMobile}
+              />
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+                {mapColorMode === "density" && <>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#B45309", display: "inline-block" }} /> 80+
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.saffron, display: "inline-block" }} /> 60–79
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FBBF24", display: "inline-block" }} /> &lt;60
+                  </span>
+                </>}
+                {mapColorMode === "persuasion" && <>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#7C3AED", display: "inline-block" }} /> 80+
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#8B5CF6", display: "inline-block" }} /> 60–79
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#C4B5FD", display: "inline-block" }} /> &lt;60
+                  </span>
+                </>}
+                {mapColorMode === "party" && <>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.dem, display: "inline-block" }} /> Democrat
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.gop, display: "inline-block" }} /> Republican
+                  </span>
+                </>}
+                <span style={{ fontSize: 10, color: C.textMuted }}>· Circle size = Indian American population</span>
+              </div>
             </div>
 
             <Card>
