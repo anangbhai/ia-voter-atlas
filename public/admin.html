@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voter Atlas Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #FAF8F3; color: #1E2D3D; min-height: 100vh; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .display { font-family: 'Roboto Slab', serif; }
+
+  /* Layout */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+  header { background: #1E3A5F; color: #fff; padding: 20px 24px; border-bottom: 3px solid #D97706; }
+  header h1 { font-family: 'Roboto Slab', serif; font-size: 22px; font-weight: 800; }
+  header p { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+  /* Login */
+  #login-screen { max-width: 380px; margin: 80px auto; padding: 0 16px; }
+  #login-screen h2 { font-family: 'Roboto Slab', serif; color: #1E3A5F; font-size: 24px; margin-bottom: 8px; }
+  #login-screen p { color: #4A5568; font-size: 14px; margin-bottom: 24px; }
+
+  /* Forms */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #8F8778; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 14px; background: #fff; color: #1E2D3D; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #D97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.1); }
+  textarea { resize: vertical; min-height: 80px; }
+  select { cursor: pointer; }
+
+  /* Buttons */
+  .btn { padding: 10px 20px; border: none; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #1E3A5F; color: #fff; }
+  .btn-primary:hover { background: #2a4f7a; }
+  .btn-saffron { background: #D97706; color: #fff; }
+  .btn-saffron:hover { background: #B45309; }
+  .btn-outline { background: transparent; border: 1px solid #8F8778; color: #4A5568; }
+  .btn-outline:hover { border-color: #D97706; color: #92400E; }
+  .btn-danger { background: #B91C1C; color: #fff; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Cards */
+  .card { background: #fff; border: 1px solid #8F8778; border-radius: 10px; box-shadow: 0 1px 3px rgba(30,45,61,0.04); }
+  .card-body { padding: 20px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #8F8778; background: #fff; position: sticky; top: 0; z-index: 50; }
+  .tab-btn { padding: 12px 20px; font-size: 13px; font-weight: 500; border: none; background: transparent; cursor: pointer; color: #6B7280; border-bottom: 2px solid transparent; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .tab-btn.active { color: #1E3A5F; font-weight: 700; border-bottom-color: #D97706; }
+  .tab-content { display: none; padding: 24px 0; }
+  .tab-content.active { display: block; }
+
+  /* Sub-tabs */
+  .sub-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sub-tab { padding: 6px 14px; font-size: 12px; border-radius: 6px; border: 1px solid #8F8778; background: #fff; color: #4A5568; cursor: pointer; font-weight: 600; transition: all 0.15s; }
+  .sub-tab.active { border-color: #B45309; background: #FFFBEB; color: #92400E; }
+
+  /* Progress */
+  .progress-bar { width: 100%; height: 6px; background: #E8E3D8; border-radius: 3px; overflow: hidden; margin: 12px 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #D97706, #B45309); border-radius: 3px; transition: width 0.3s; }
+
+  /* Status */
+  .status { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin: 12px 0; }
+  .status-info { background: #DBEAFE; color: #1E40AF; }
+  .status-success { background: #ECFDF5; color: #047857; }
+  .status-error { background: #FEF2F2; color: #991B1B; }
+  .status-warn { background: #FFFBEB; color: #92400E; }
+
+  /* Preview table */
+  .preview-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; }
+  .preview-table th { text-align: left; padding: 8px 10px; background: #F5F2EB; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #8F8778; }
+  .preview-table td { padding: 8px 10px; border-bottom: 1px solid #E8E3D8; }
+  .preview-table tr:hover { background: #FFFBEB; }
+
+  /* Misc */
+  .flex { display: flex; } .gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; }
+  .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+  .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+  .mb-8 { margin-bottom: 8px; } .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
+  .text-muted { color: #6B7280; font-size: 12px; }
+  .text-sm { font-size: 13px; }
+  .font-bold { font-weight: 700; }
+  .hidden { display: none; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+  .badge-saffron { background: #FFFBEB; color: #92400E; }
+  .badge-green { background: #ECFDF5; color: #047857; }
+  .badge-purple { background: #EDE9FE; color: #6D28D9; }
+
+  @media (max-width: 600px) {
+    .card-body { padding: 14px; }
+    .tab-btn { padding: 10px 12px; font-size: 11px; }
+    .form-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen">
+  <div style="text-align:center; margin-bottom: 32px;">
+    <div class="display" style="font-size:20px; font-weight:800; color:#1E3A5F;">Indian American Voter Atlas</div>
+    <div class="mono" style="font-size:10px; color:#D97706; letter-spacing:2px; margin-top:4px;">ADMIN</div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div id="auth-mode-login">
+        <h2 class="display" style="font-size:20px; margin-bottom:16px;">Sign In</h2>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" />
+        </div>
+        <div id="login-error" class="status status-error hidden"></div>
+        <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="handleLogin()">Sign In</button>
+        <p class="text-muted mt-16" style="text-align:center;">
+          First time? <a href="#" onclick="showSignup(); return false;" style="color:#1E40AF;">Create admin account</a>
+        </p>
+      </div>
+      <div id="auth-mode-signup" class="hidden">
+        <h2 class="display" style="font-size:20px; margin-bottom:16px;">Create Account</h2>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="signup-email" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password (min 8 characters)</label>
+          <input type="password" id="signup-password" placeholder="••••••••" />
+        </div>
+        <div id="signup-error" class="status status-error hidden"></div>
+        <div id="signup-success" class="status status-success hidden"></div>
+        <button class="btn btn-saffron" style="width:100%; margin-top:8px;" onclick="handleSignup()">Create Account</button>
+        <p class="text-muted mt-16" style="text-align:center;">
+          <a href="#" onclick="showLogin(); return false;" style="color:#1E40AF;">Back to sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN DASHBOARD ═══ -->
+<div id="admin-dashboard" class="hidden">
+  <header>
+    <div class="container flex justify-between items-center">
+      <div>
+        <h1 class="display">Voter Atlas Admin</h1>
+        <p>Data management & API tools</p>
+      </div>
+      <div class="flex gap-8 items-center">
+        <span id="user-email" class="mono" style="font-size:11px; color:rgba(255,255,255,0.6);"></span>
+        <button class="btn btn-sm btn-outline" style="color:rgba(255,255,255,0.7); border-color:rgba(255,255,255,0.3);" onclick="handleLogout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('edit')">Quick Edit</button>
+      <button class="tab-btn" onclick="switchTab('loaders')">Data Loaders</button>
+      <button class="tab-btn" onclick="switchTab('tables')">Tables</button>
+    </div>
+
+    <!-- ═══ QUICK EDIT TAB ═══ -->
+    <div id="tab-edit" class="tab-content active">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="switchSubTab('edit-district')">Update District</button>
+        <button class="sub-tab" onclick="switchSubTab('edit-incident')">Add Incident</button>
+        <button class="sub-tab" onclick="switchSubTab('edit-event')">Add Event</button>
+        <button class="sub-tab" onclick="switchSubTab('edit-narrative')">Update Narrative</button>
+        <button class="sub-tab" onclick="switchSubTab('edit-senate')">Update Senate</button>
+      </div>
+
+      <!-- Update District -->
+      <div id="edit-district" class="sub-content active">
+        <div class="card"><div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Update District</h3>
+          <p class="text-muted mb-16">Change Cook rating, representative, or notes for a district.</p>
+          <div class="form-group">
+            <label>Select District</label>
+            <select id="dist-select" onchange="loadDistrictData()">
+              <option value="">Choose...</option>
+            </select>
+          </div>
+          <div id="dist-fields" class="hidden">
+            <div class="flex gap-12" style="flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:200px;">
+                <label>Representative</label>
+                <input type="text" id="dist-rep" />
+              </div>
+              <div class="form-group" style="flex:1; min-width:200px;">
+                <label>Party</label>
+                <select id="dist-party"><option value="D">D</option><option value="R">R</option></select>
+              </div>
+            </div>
+            <div class="flex gap-12" style="flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:200px;">
+                <label>Cook 2026 Rating</label>
+                <select id="dist-cook">
+                  <option>Solid D</option><option>Likely D</option><option>Lean D</option>
+                  <option>Toss Up</option>
+                  <option>Lean R</option><option>Likely R</option><option>Solid R</option>
+                  <option>Special Election</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1; min-width:200px;">
+                <label>Cook PVI</label>
+                <input type="text" id="dist-pvi" placeholder="e.g. D+6" />
+              </div>
+            </div>
+            <div class="flex gap-12" style="flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:120px;">
+                <label>Density Score</label>
+                <input type="number" id="dist-density" min="0" max="100" />
+              </div>
+              <div class="form-group" style="flex:1; min-width:120px;">
+                <label>Persuasion Score</label>
+                <input type="number" id="dist-persuasion" min="0" max="100" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea id="dist-notes"></textarea>
+            </div>
+            <div id="dist-status"></div>
+            <button class="btn btn-saffron mt-8" onclick="saveDistrict()">Save Changes</button>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Add Incident -->
+      <div id="edit-incident" class="sub-content hidden">
+        <div class="card"><div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Add Incident</h3>
+          <p class="text-muted mb-16">Log a new hate crime or bias incident.</p>
+          <div class="flex gap-12" style="flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Date</label>
+              <input type="date" id="inc-date" />
+            </div>
+            <div class="form-group" style="flex:1; min-width:200px;">
+              <label>Location</label>
+              <input type="text" id="inc-location" placeholder="City, State" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Target</label>
+            <input type="text" id="inc-target" placeholder="e.g. BAPS Shri Swaminarayan Mandir" />
+          </div>
+          <div class="flex gap-12" style="flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:150px;">
+              <label>Type</label>
+              <select id="inc-type"><option>Vandalism</option><option>Assault</option><option>Arson</option><option>Threat</option><option>Mass Shooting</option><option>Other</option></select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:150px;">
+              <label>Bias</label>
+              <select id="inc-bias"><option>Anti-Hindu</option><option>Anti-Sikh</option><option>Anti-Hindu / Pro-Khalistani</option><option>Anti-Indian</option><option>White Supremacist</option><option>Other</option></select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:120px;">
+              <label>Severity</label>
+              <select id="inc-severity"><option>medium</option><option>high</option><option>critical</option></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="inc-desc" placeholder="What happened..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Source</label>
+            <input type="text" id="inc-source" placeholder="e.g. FBI, Sikh Coalition, local media" />
+          </div>
+          <div id="inc-status"></div>
+          <button class="btn btn-saffron mt-8" onclick="saveIncident()">Add Incident</button>
+        </div></div>
+      </div>
+
+      <!-- Add Discourse Event -->
+      <div id="edit-event" class="sub-content hidden">
+        <div class="card"><div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Add Discourse Event</h3>
+          <p class="text-muted mb-16">Log a legislative, policy, or media event for the timeline.</p>
+          <div class="flex gap-12" style="flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:150px;">
+              <label>Date (YYYY-MM)</label>
+              <input type="text" id="evt-date" placeholder="2026-03" />
+            </div>
+            <div class="form-group" style="flex:1; min-width:150px;">
+              <label>Type</label>
+              <select id="evt-type"><option>legislation</option><option>policy</option><option>incident</option><option>electoral</option><option>advocacy</option><option>rhetoric</option><option>research</option><option>data</option></select>
+            </div>
+            <div class="form-group" style="flex:1; min-width:120px;">
+              <label>Valence</label>
+              <select id="evt-valence"><option>positive</option><option>neutral</option><option>negative</option></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Actor</label>
+            <input type="text" id="evt-actor" placeholder="e.g. 119th Congress, FBI, White House" />
+          </div>
+          <div class="form-group">
+            <label>Event headline</label>
+            <input type="text" id="evt-event" placeholder="Short headline..." />
+          </div>
+          <div class="form-group">
+            <label>Detail</label>
+            <textarea id="evt-detail" placeholder="Full description..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Source</label>
+            <input type="text" id="evt-source" placeholder="e.g. Congress.gov, AP, Sikh Coalition" />
+          </div>
+          <div id="evt-status"></div>
+          <button class="btn btn-saffron mt-8" onclick="saveEvent()">Add Event</button>
+        </div></div>
+      </div>
+
+      <!-- Update Narrative -->
+      <div id="edit-narrative" class="sub-content hidden">
+        <div class="card"><div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Update Narrative Tracker</h3>
+          <p class="text-muted mb-16">Update intensity, direction, or framing of tracked narratives.</p>
+          <div class="form-group">
+            <label>Select Narrative</label>
+            <select id="narr-select" onchange="loadNarrativeData()"><option value="">Choose...</option></select>
+          </div>
+          <div id="narr-fields" class="hidden">
+            <div class="flex gap-12" style="flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:150px;">
+                <label>Intensity</label>
+                <select id="narr-intensity"><option>high</option><option>medium</option><option>low</option></select>
+              </div>
+              <div class="form-group" style="flex:1; min-width:150px;">
+                <label>Direction</label>
+                <select id="narr-direction"><option>growing</option><option>stable</option><option>fading</option></select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <textarea id="narr-desc" style="min-height:100px;"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Sample Framing</label>
+              <textarea id="narr-framing"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Date Range</label>
+              <input type="text" id="narr-daterange" placeholder="e.g. Nov 2024 – present" />
+            </div>
+            <div id="narr-status"></div>
+            <button class="btn btn-saffron mt-8" onclick="saveNarrative()">Save Changes</button>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Update Senate -->
+      <div id="edit-senate" class="sub-content hidden">
+        <div class="card"><div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Update Senate Race</h3>
+          <p class="text-muted mb-16">Change rating, incumbent, or notes for a senate race.</p>
+          <div class="form-group">
+            <label>Select State</label>
+            <select id="sen-select" onchange="loadSenateData()"><option value="">Choose...</option></select>
+          </div>
+          <div id="sen-fields" class="hidden">
+            <div class="flex gap-12" style="flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:200px;">
+                <label>Incumbent</label>
+                <input type="text" id="sen-incumbent" />
+              </div>
+              <div class="form-group" style="flex:1; min-width:150px;">
+                <label>Rating</label>
+                <select id="sen-rating">
+                  <option>Toss Up</option><option>Lean D</option><option>Lean R</option>
+                  <option>Likely D</option><option>Likely R</option>
+                  <option>Solid D</option><option>Solid R</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea id="sen-notes"></textarea>
+            </div>
+            <div id="sen-status"></div>
+            <button class="btn btn-saffron mt-8" onclick="saveSenate()">Save Changes</button>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ═══ DATA LOADERS TAB ═══ -->
+    <div id="tab-loaders" class="tab-content">
+
+      <!-- Overpass: Temples -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">🛕 Temple & Gurdwara Count</h3>
+            <span class="badge badge-saffron">OpenStreetMap</span>
+          </div>
+          <p class="text-muted mb-16">Pulls all Hindu temples and Sikh gurdwaras from OpenStreetMap, maps each to a congressional district using the Census geocoder, and saves per-district counts. Backs up the Cultural Business Density factor (20% of Density Index).</p>
+          <button class="btn btn-saffron" id="btn-overpass" onclick="runOverpass()">Pull Temple Data</button>
+          <div id="overpass-status" class="mt-12"></div>
+          <div class="progress-bar hidden" id="overpass-progress"><div class="progress-fill" id="overpass-fill" style="width:0%"></div></div>
+          <div id="overpass-preview" class="mt-12"></div>
+          <button class="btn btn-primary mt-12 hidden" id="btn-overpass-save" onclick="saveOverpassData()">Save to Database</button>
+        </div>
+      </div>
+
+      <!-- Census: Language -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">🗣️ Census Language Data</h3>
+            <span class="badge badge-purple">Census API</span>
+          </div>
+          <p class="text-muted mb-16">Pulls language-spoken-at-home data from the ACS 5-Year Estimates for your 24 tracked districts. Shows South Asian language speakers and limited English proficiency rates.</p>
+          <button class="btn btn-saffron" id="btn-census" onclick="runCensus()">Pull Language Data</button>
+          <div id="census-status" class="mt-12"></div>
+          <div id="census-preview" class="mt-12"></div>
+          <button class="btn btn-primary mt-12 hidden" id="btn-census-save" onclick="saveCensusData()">Save to Database</button>
+        </div>
+      </div>
+
+      <!-- Census: Population Verify -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">📊 Verify Population Data</h3>
+            <span class="badge badge-purple">Census API</span>
+          </div>
+          <p class="text-muted mb-16">Pulls Asian Indian alone population (Table B02015) from the ACS 5-Year Estimates and compares it to your current district data. Flags any discrepancies.</p>
+          <button class="btn btn-outline" id="btn-verify" onclick="runVerify()">Verify Against Census</button>
+          <div id="verify-status" class="mt-12"></div>
+          <div id="verify-preview" class="mt-12"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TABLES TAB ═══ -->
+    <div id="tab-tables" class="tab-content">
+      <div class="card">
+        <div class="card-body">
+          <h3 class="display mb-8" style="font-size:16px; color:#1E3A5F;">Supabase Table Editor</h3>
+          <p class="text-muted mb-16">For bulk edits and advanced operations, use the Supabase dashboard directly. It's a full spreadsheet-like editor for all your tables.</p>
+          <a href="https://supabase.com/dashboard/project/myasgeeeutbbcahnguei/editor" target="_blank" class="btn btn-primary">Open Supabase Dashboard ↗</a>
+
+          <h4 class="display mt-24 mb-8" style="font-size:14px; color:#1E3A5F;">Table Summary</h4>
+          <div id="table-summary">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="margin-top:40px; padding:20px; text-align:center; border-top:1px solid #E8E3D8;">
+    <span class="text-muted">Indian American Voter Atlas · Admin Panel</span>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+
+const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
+const SUPABASE_ANON = "REDACTED";
+const CENSUS_KEY = "REDACTED";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// State FIPS → abbreviation
+const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
+
+// Our 24 tracked districts for lookup
+const TRACKED_DISTRICTS = new Set([
+  "CA-17","NJ-07","IL-08","CA-06","TX-22","NJ-11","VA-10","WA-07","TX-10","MI-13",
+  "NJ-06","GA-07","NY-03","PA-06","NC-09","TX-24","CA-16","NJ-12","VA-11","NY-04",
+  "CA-14","NJ-05","MD-08","CA-32"
+]);
+
+// Cached data
+let allDistricts = [];
+let allNarratives = [];
+let allSenate = [];
+let overpassResults = null;
+let censusResults = null;
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+
+function showLogin() { $('auth-mode-login').classList.remove('hidden'); $('auth-mode-signup').classList.add('hidden'); }
+function showSignup() { $('auth-mode-login').classList.add('hidden'); $('auth-mode-signup').classList.remove('hidden'); }
+
+async function handleLogin() {
+  const email = $('login-email').value;
+  const pw = $('login-password').value;
+  $('login-error').classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if (error) { $('login-error').textContent = error.message; $('login-error').classList.remove('hidden'); }
+}
+
+async function handleSignup() {
+  const email = $('signup-email').value;
+  const pw = $('signup-password').value;
+  $('signup-error').classList.add('hidden');
+  $('signup-success').classList.add('hidden');
+  if (pw.length < 8) { $('signup-error').textContent = "Password must be at least 8 characters."; $('signup-error').classList.remove('hidden'); return; }
+  const { error } = await sb.auth.signUp({ email, password: pw });
+  if (error) { $('signup-error').textContent = error.message; $('signup-error').classList.remove('hidden'); }
+  else { $('signup-success').textContent = "Account created! Check your email to confirm, then sign in."; $('signup-success').classList.remove('hidden'); }
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  $('admin-dashboard').classList.add('hidden');
+  $('login-screen').classList.remove('hidden');
+}
+
+// Listen for auth state changes
+sb.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    $('login-screen').classList.add('hidden');
+    $('admin-dashboard').classList.remove('hidden');
+    $('user-email').textContent = session.user.email;
+    loadAdminData();
+  }
+});
+
+// Check existing session on load
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    $('login-screen').classList.add('hidden');
+    $('admin-dashboard').classList.remove('hidden');
+    $('user-email').textContent = session.user.email;
+    loadAdminData();
+  }
+})();
+
+
+// ═══════════════════════════════════════════════════════════
+// LOAD DATA FOR FORMS
+// ═══════════════════════════════════════════════════════════
+
+async function loadAdminData() {
+  const { data: dist } = await sb.from('districts').select('*').order('density_score', { ascending: false });
+  const { data: narr } = await sb.from('narrative_items').select('*');
+  const { data: sen } = await sb.from('senate_races').select('*');
+  allDistricts = dist || [];
+  allNarratives = narr || [];
+  allSenate = sen || [];
+
+  // Populate district dropdown
+  const ds = $('dist-select');
+  ds.innerHTML = '<option value="">Choose...</option>';
+  allDistricts.forEach(d => { const o = document.createElement('option'); o.value = d.id; o.textContent = `${d.id} — ${d.rep}`; ds.appendChild(o); });
+
+  // Populate narrative dropdown
+  const ns = $('narr-select');
+  ns.innerHTML = '<option value="">Choose...</option>';
+  allNarratives.forEach((n, i) => { const o = document.createElement('option'); o.value = n.id; o.textContent = n.narrative; ns.appendChild(o); });
+
+  // Populate senate dropdown
+  const ss = $('sen-select');
+  ss.innerHTML = '<option value="">Choose...</option>';
+  allSenate.forEach(s => { const o = document.createElement('option'); o.value = s.state; o.textContent = s.state; ss.appendChild(o); });
+
+  // Load table summary
+  loadTableSummary();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// QUICK EDIT HANDLERS
+// ═══════════════════════════════════════════════════════════
+
+function loadDistrictData() {
+  const id = $('dist-select').value;
+  if (!id) { $('dist-fields').classList.add('hidden'); return; }
+  const d = allDistricts.find(x => x.id === id);
+  if (!d) return;
+  $('dist-rep').value = d.rep;
+  $('dist-party').value = d.party;
+  $('dist-cook').value = d.cook_2026;
+  $('dist-pvi').value = d.cook_pvi || '';
+  $('dist-density').value = d.density_score;
+  $('dist-persuasion').value = d.persuasion_score;
+  $('dist-notes').value = d.notes || '';
+  $('dist-fields').classList.remove('hidden');
+}
+
+async function saveDistrict() {
+  const id = $('dist-select').value;
+  const { error } = await sb.from('districts').update({
+    rep: $('dist-rep').value,
+    party: $('dist-party').value,
+    cook_2026: $('dist-cook').value,
+    cook_pvi: $('dist-pvi').value,
+    density_score: parseInt($('dist-density').value),
+    persuasion_score: parseInt($('dist-persuasion').value),
+    notes: $('dist-notes').value,
+  }).eq('id', id);
+  showStatus('dist-status', error ? `Error: ${error.message}` : `✓ ${id} updated successfully`, !error);
+  if (!error) loadAdminData();
+}
+
+async function saveIncident() {
+  const { error } = await sb.from('temple_incidents').insert({
+    date: $('inc-date').value,
+    location: $('inc-location').value,
+    target: $('inc-target').value,
+    type: $('inc-type').value,
+    bias: $('inc-bias').value,
+    severity: $('inc-severity').value,
+    description: $('inc-desc').value,
+    source: $('inc-source').value,
+  });
+  showStatus('inc-status', error ? `Error: ${error.message}` : '✓ Incident added', !error);
+  if (!error) ['inc-date','inc-location','inc-target','inc-desc','inc-source'].forEach(id => $(id).value = '');
+}
+
+async function saveEvent() {
+  const { error } = await sb.from('discourse_events').insert({
+    date: $('evt-date').value,
+    type: $('evt-type').value,
+    valence: $('evt-valence').value,
+    actor: $('evt-actor').value,
+    event: $('evt-event').value,
+    detail: $('evt-detail').value,
+    source: $('evt-source').value,
+  });
+  showStatus('evt-status', error ? `Error: ${error.message}` : '✓ Event added', !error);
+  if (!error) ['evt-date','evt-actor','evt-event','evt-detail','evt-source'].forEach(id => $(id).value = '');
+}
+
+function loadNarrativeData() {
+  const id = parseInt($('narr-select').value);
+  if (!id) { $('narr-fields').classList.add('hidden'); return; }
+  const n = allNarratives.find(x => x.id === id);
+  if (!n) return;
+  $('narr-intensity').value = n.intensity;
+  $('narr-direction').value = n.direction;
+  $('narr-desc').value = n.description;
+  $('narr-framing').value = n.sample_framing;
+  $('narr-daterange').value = n.date_range;
+  $('narr-fields').classList.remove('hidden');
+}
+
+async function saveNarrative() {
+  const id = parseInt($('narr-select').value);
+  const { error } = await sb.from('narrative_items').update({
+    intensity: $('narr-intensity').value,
+    direction: $('narr-direction').value,
+    description: $('narr-desc').value,
+    sample_framing: $('narr-framing').value,
+    date_range: $('narr-daterange').value,
+    last_updated: `Updated ${new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })}`,
+  }).eq('id', id);
+  showStatus('narr-status', error ? `Error: ${error.message}` : '✓ Narrative updated', !error);
+}
+
+function loadSenateData() {
+  const st = $('sen-select').value;
+  if (!st) { $('sen-fields').classList.add('hidden'); return; }
+  const s = allSenate.find(x => x.state === st);
+  if (!s) return;
+  $('sen-incumbent').value = s.incumbent;
+  $('sen-rating').value = s.rating;
+  $('sen-notes').value = s.notes || '';
+  $('sen-fields').classList.remove('hidden');
+}
+
+async function saveSenate() {
+  const st = $('sen-select').value;
+  const { error } = await sb.from('senate_races').update({
+    incumbent: $('sen-incumbent').value,
+    rating: $('sen-rating').value,
+    notes: $('sen-notes').value,
+  }).eq('state', st);
+  showStatus('sen-status', error ? `Error: ${error.message}` : `✓ ${st} updated`, !error);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: OVERPASS (Temples)
+// ═══════════════════════════════════════════════════════════
+
+async function runOverpass() {
+  const btn = $('btn-overpass');
+  btn.disabled = true;
+  showStatus('overpass-status', '⏳ Querying OpenStreetMap for Hindu temples and Sikh gurdwaras...', true);
+
+  try {
+    const query = `[out:json][timeout:90];
+area["ISO3166-1"="US"]->.usa;
+(
+  nwr["amenity"="place_of_worship"]["religion"="hindu"](area.usa);
+  nwr["amenity"="place_of_worship"]["religion"="sikh"](area.usa);
+);
+out center;`;
+
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query),
+    });
+    const data = await res.json();
+    const elements = data.elements || [];
+
+    const temples = elements.map(e => ({
+      osm_id: e.id,
+      name: e.tags?.name || 'Unnamed',
+      religion: e.tags?.religion || 'unknown',
+      lat: e.lat || e.center?.lat,
+      lng: e.lon || e.center?.lon,
+    })).filter(t => t.lat && t.lng);
+
+    const hindu = temples.filter(t => t.religion === 'hindu').length;
+    const sikh = temples.filter(t => t.religion === 'sikh').length;
+    showStatus('overpass-status', `✓ Found ${temples.length} places of worship (${hindu} Hindu, ${sikh} Sikh). Now mapping to congressional districts...`, true);
+
+    // Map to CDs using Census TIGERweb
+    $('overpass-progress').classList.remove('hidden');
+    let mapped = 0;
+    const results = [];
+
+    for (let i = 0; i < temples.length; i++) {
+      const t = temples[i];
+      try {
+        const geoRes = await fetch(
+          `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${t.lng}&y=${t.lat}&benchmark=Public_AR_Current&vintage=Current_Current&format=json`
+        );
+        const geoData = await geoRes.json();
+        const cds = geoData?.result?.geographies?.['119th Congressional Districts'] ||
+                    geoData?.result?.geographies?.['118th Congressional Districts'] || [];
+        if (cds.length) {
+          const cd = cds[0];
+          const stAbbr = FIPS[cd.STATE] || cd.STATE;
+          const distNum = parseInt(cd.BASENAME);
+          const distId = `${stAbbr}-${String(distNum).padStart(2, '0')}`;
+          results.push({ ...t, district_id: distId, state_fips: cd.STATE, district_num: cd.BASENAME });
+        } else {
+          results.push({ ...t, district_id: null, state_fips: null, district_num: null });
+        }
+      } catch {
+        results.push({ ...t, district_id: null, state_fips: null, district_num: null });
+      }
+      mapped++;
+      $('overpass-fill').style.width = `${(mapped / temples.length * 100).toFixed(0)}%`;
+
+      // Show running count every 10
+      if (mapped % 10 === 0 || mapped === temples.length) {
+        showStatus('overpass-status', `Mapping: ${mapped}/${temples.length} complete...`, true);
+      }
+
+      // Throttle: 500ms between requests
+      if (i < temples.length - 1) await sleep(500);
+    }
+
+    // Aggregate per tracked district
+    const counts = {};
+    TRACKED_DISTRICTS.forEach(d => counts[d] = { hindu: 0, sikh: 0, total: 0 });
+    results.forEach(r => {
+      if (r.district_id && TRACKED_DISTRICTS.has(r.district_id)) {
+        if (r.religion === 'hindu') counts[r.district_id].hindu++;
+        else if (r.religion === 'sikh') counts[r.district_id].sikh++;
+        counts[r.district_id].total++;
+      }
+    });
+
+    overpassResults = { raw: results, counts };
+
+    // Show preview
+    const trackedWithData = Object.entries(counts).filter(([, c]) => c.total > 0).sort((a, b) => b[1].total - a[1].total);
+    const unmapped = results.filter(r => !r.district_id).length;
+    const outsideTracked = results.filter(r => r.district_id && !TRACKED_DISTRICTS.has(r.district_id)).length;
+
+    let html = `<p class="text-sm mb-8"><strong>${results.length}</strong> temples mapped. <strong>${trackedWithData.length}</strong> of your 24 districts have temples. ${unmapped} couldn't be geocoded. ${outsideTracked} are in other districts.</p>`;
+    html += '<table class="preview-table"><tr><th>District</th><th>Hindu</th><th>Sikh</th><th>Total</th></tr>';
+    trackedWithData.forEach(([id, c]) => {
+      html += `<tr><td class="mono font-bold">${id}</td><td>${c.hindu}</td><td>${c.sikh}</td><td><strong>${c.total}</strong></td></tr>`;
+    });
+    html += '</table>';
+    $('overpass-preview').innerHTML = html;
+    $('btn-overpass-save').classList.remove('hidden');
+    showStatus('overpass-status', `✓ Mapping complete! Review the table below and click Save.`, true);
+
+  } catch (err) {
+    showStatus('overpass-status', `Error: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+async function saveOverpassData() {
+  if (!overpassResults) return;
+  const btn = $('btn-overpass-save');
+  btn.disabled = true;
+  showStatus('overpass-status', '⏳ Saving to database...', true);
+
+  try {
+    // Clear old data
+    await sb.from('osm_temples').delete().neq('id', 0);
+    await sb.from('district_temple_counts').delete().neq('district_id', '');
+
+    // Insert raw temples (in batches of 50)
+    const rows = overpassResults.raw.map(r => ({
+      osm_id: r.osm_id, name: r.name, religion: r.religion,
+      lat: r.lat, lng: r.lng, district_id: r.district_id,
+      state_fips: r.state_fips, district_num: r.district_num,
+    }));
+    for (let i = 0; i < rows.length; i += 50) {
+      await sb.from('osm_temples').insert(rows.slice(i, i + 50));
+    }
+
+    // Insert counts
+    const countRows = Object.entries(overpassResults.counts).map(([id, c]) => ({
+      district_id: id, hindu_temples: c.hindu, sikh_gurdwaras: c.sikh, total: c.total,
+    }));
+    await sb.from('district_temple_counts').insert(countRows);
+
+    showStatus('overpass-status', `✓ Saved ${rows.length} temples and ${countRows.length} district counts to database.`, true);
+    btn.classList.add('hidden');
+  } catch (err) {
+    showStatus('overpass-status', `Error saving: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: CENSUS LANGUAGE
+// ═══════════════════════════════════════════════════════════
+
+async function runCensus() {
+  const btn = $('btn-census');
+  btn.disabled = true;
+  showStatus('census-status', '⏳ Querying Census ACS for language data...', true);
+
+  try {
+    // Pull C16001 (language spoken at home) at congressional district level
+    // C16001_001E = total, C16001_002E = English only
+    // We'll also try the detailed B16001 table for specific languages
+    const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,C16001_001E,C16001_002E,C16001_036E,C16001_037E,C16001_038E,C16001_039E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Census API returned ${res.status}`);
+    const data = await res.json();
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Map to our districts
+    censusResults = [];
+    rows.forEach(row => {
+      const stFips = row[headers.indexOf('state')];
+      const cdNum = row[headers.indexOf('congressional district')];
+      const stAbbr = FIPS[stFips];
+      if (!stAbbr) return;
+      const distId = `${stAbbr}-${String(parseInt(cdNum)).padStart(2, '0')}`;
+      if (!TRACKED_DISTRICTS.has(distId)) return;
+
+      const totalPop5plus = parseInt(row[headers.indexOf('C16001_001E')]) || 0;
+      const englishOnly = parseInt(row[headers.indexOf('C16001_002E')]) || 0;
+      // C16001_036E through 039E cover "Other Asian and Pacific Island languages"
+      const otherAsianTotal = parseInt(row[headers.indexOf('C16001_036E')]) || 0;
+      const otherAsianVeryWell = parseInt(row[headers.indexOf('C16001_037E')]) || 0;
+      const otherAsianWell = parseInt(row[headers.indexOf('C16001_038E')]) || 0;
+      const otherAsianNotWell = parseInt(row[headers.indexOf('C16001_039E')]) || 0;
+      const lep = otherAsianWell + otherAsianNotWell;
+
+      censusResults.push({
+        district_id: distId,
+        total_pop_5plus: totalPop5plus,
+        south_asian_lang_speakers: otherAsianTotal,
+        south_asian_lep: lep,
+        lep_pct: totalPop5plus > 0 ? parseFloat((lep / totalPop5plus * 100).toFixed(2)) : 0,
+        data_vintage: 'ACS 2018-2022',
+      });
+    });
+
+    censusResults.sort((a, b) => b.south_asian_lang_speakers - a.south_asian_lang_speakers);
+
+    let html = `<p class="text-sm mb-8">Language data for <strong>${censusResults.length}</strong> tracked districts. Note: "Other Asian languages" is a broad Census category — includes South Asian languages but isn't exclusive to them.</p>`;
+    html += '<table class="preview-table"><tr><th>District</th><th>Asian Lang. Speakers</th><th>LEP Count</th><th>LEP %</th></tr>';
+    censusResults.forEach(r => {
+      html += `<tr><td class="mono font-bold">${r.district_id}</td><td>${r.south_asian_lang_speakers.toLocaleString()}</td><td>${r.south_asian_lep.toLocaleString()}</td><td>${r.lep_pct}%</td></tr>`;
+    });
+    html += '</table>';
+    $('census-preview').innerHTML = html;
+    $('btn-census-save').classList.remove('hidden');
+    showStatus('census-status', `✓ Data pulled for ${censusResults.length} districts. Review and save.`, true);
+
+  } catch (err) {
+    showStatus('census-status', `Error: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+async function saveCensusData() {
+  if (!censusResults?.length) return;
+  const btn = $('btn-census-save');
+  btn.disabled = true;
+
+  try {
+    await sb.from('census_language').delete().neq('district_id', '');
+    await sb.from('census_language').insert(censusResults);
+    showStatus('census-status', `✓ Saved language data for ${censusResults.length} districts.`, true);
+    btn.classList.add('hidden');
+  } catch (err) {
+    showStatus('census-status', `Error: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: VERIFY POPULATION
+// ═══════════════════════════════════════════════════════════
+
+async function runVerify() {
+  const btn = $('btn-verify');
+  btn.disabled = true;
+  showStatus('verify-status', '⏳ Pulling Asian Indian population from Census...', true);
+
+  try {
+    // B02015_002E = Asian Indian alone
+    const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B02015_002E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Census API returned ${res.status}`);
+    const data = await res.json();
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    const censusMap = {};
+    rows.forEach(row => {
+      const stFips = row[headers.indexOf('state')];
+      const cdNum = row[headers.indexOf('congressional district')];
+      const stAbbr = FIPS[stFips];
+      if (!stAbbr) return;
+      const distId = `${stAbbr}-${String(parseInt(cdNum)).padStart(2, '0')}`;
+      const pop = parseInt(row[headers.indexOf('B02015_002E')]) || 0;
+      censusMap[distId] = pop;
+    });
+
+    let html = '<table class="preview-table"><tr><th>District</th><th>Your Data</th><th>Census ACS</th><th>Diff</th><th>Status</th></tr>';
+    allDistricts.forEach(d => {
+      const censusPop = censusMap[d.id];
+      const yourPop = d.indian_pop;
+      if (censusPop === undefined) { html += `<tr><td class="mono font-bold">${d.id}</td><td>${yourPop?.toLocaleString()}</td><td>—</td><td>—</td><td class="badge badge-saffron">Not found</td></tr>`; return; }
+      const diff = yourPop - censusPop;
+      const pctDiff = censusPop > 0 ? Math.abs(diff / censusPop * 100).toFixed(0) : 0;
+      const ok = pctDiff < 15;
+      html += `<tr><td class="mono font-bold">${d.id}</td><td>${yourPop?.toLocaleString()}</td><td>${censusPop.toLocaleString()}</td><td>${diff > 0 ? '+' : ''}${diff.toLocaleString()}</td><td><span class="badge ${ok ? 'badge-green' : 'badge-saffron'}">${ok ? '✓ OK' : pctDiff + '% off'}</span></td></tr>`;
+    });
+    html += '</table>';
+    html += '<p class="text-muted mt-8">Note: Census ACS 2022 uses 118th Congress districts. Your data may use adjusted estimates for the 119th. Differences under 15% are expected.</p>';
+    $('verify-preview').innerHTML = html;
+    showStatus('verify-status', '✓ Comparison complete.', true);
+
+  } catch (err) {
+    showStatus('verify-status', `Error: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// TABLE SUMMARY
+// ═══════════════════════════════════════════════════════════
+
+async function loadTableSummary() {
+  const tables = ['districts','senate_races','fbi_trend_data','temple_incidents','discourse_events','narrative_items','pres_vote_trend','gender_age_vote','party_id','top_issues','precinct_swings','osm_temples','district_temple_counts','census_language'];
+  let html = '<table class="preview-table"><tr><th>Table</th><th>Rows</th></tr>';
+  for (const t of tables) {
+    const { count } = await sb.from(t).select('*', { count: 'exact', head: true });
+    html += `<tr><td class="mono">${t}</td><td>${count ?? '—'}</td></tr>`;
+  }
+  html += '</table>';
+  $('table-summary').innerHTML = html;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════
+
+function $(id) { return document.getElementById(id); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showStatus(elId, msg, success) {
+  const el = $(elId);
+  el.innerHTML = `<div class="status ${success ? 'status-success' : 'status-error'}">${msg}</div>`;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  $(`tab-${tab}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function switchSubTab(id) {
+  document.querySelectorAll('.sub-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active'));
+  $(id).classList.remove('hidden');
+  event.target.classList.add('active');
+}
+
+</script>
+</body>
+</html>
