@@ -907,19 +907,19 @@ export default function IndianAmericanVoterAtlas() {
         {/* ═══ SENATE TAB ═══ */}
         {tab === "senate" && (
           <div>
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ fontSize: 24, fontWeight: 800, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>
+            <div style={{ marginBottom: isMobile ? 16 : 24 }}>
+              <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>
                 2026 Senate Battleground & Indian American Footprint
               </h2>
-              <p style={{ fontSize: 14, color: C.textSecondary, margin: 0 }}>
+              <p style={{ fontSize: isMobile ? 12 : 14, color: C.textSecondary, margin: 0 }}>
                 35 seats up · 23 Republican-held · Democrats need net +4 for majority
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: isMobile ? 14 : 20, flexWrap: "wrap" }}>
               {["rating", "indianPop", "state"].map(k => (
                 <button key={k} onClick={() => setSenateSortKey(k)} style={{
-                  padding: "6px 14px", fontSize: 12, borderRadius: 6,
+                  padding: isMobile ? "5px 10px" : "6px 14px", fontSize: isMobile ? 11 : 12, borderRadius: 6,
                   border: `1px solid ${senateSortKey === k ? C.saffronDark : C.border}`,
                   background: senateSortKey === k ? C.saffronBg : C.surface,
                   color: senateSortKey === k ? C.saffronText : C.textSecondary,
@@ -930,26 +930,48 @@ export default function IndianAmericanVoterAtlas() {
               ))}
             </div>
 
-            <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gap: isMobile ? 12 : 10 }}>
               {sortedSenate.map(race => (
                 <Card key={race.state} style={{ cursor: "pointer", transition: "all 0.15s", borderColor: expandedSenate === race.state ? C.saffron : C.border }}
                   onClick={() => setExpandedSenate(expandedSenate === race.state ? null : race.state)}>
-                  <div style={{ padding: "16px 20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", flexWrap: "wrap", gap: 8 }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: font.display, color: C.navy }}>{race.state}</h3>
-                          <Badge color={getRatingColor(race.rating)} bg={getRatingBg(race.rating)}>{race.rating}</Badge>
+                  <div style={{ padding: isMobile ? "14px 16px" : "16px 20px" }}>
+                    {isMobile ? (
+                      <>
+                        {/* Mobile: stacked layout */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 6 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>{race.state}</h3>
+                            <Badge color={getRatingColor(race.rating)} bg={getRatingBg(race.rating)}>{race.rating}</Badge>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: race.indianPop > 100000 ? C.saffron : C.text }}>{(race.indianPop / 1000).toFixed(0)}K</div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>
                           {race.incumbent} <span style={{ color: race.party === "D" ? C.dem : C.gop, fontWeight: 600 }}>({race.party})</span> · Trump margin: {race.trumpMargin2024}
+                          <span style={{ marginLeft: 6, fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>({race.indianPct}%)</span>
                         </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: race.indianPop > 100000 ? C.saffron : C.text }}>{(race.indianPop / 1000).toFixed(0)}K</div>
-                        <div style={{ fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>INDIAN POP ({race.indianPct}%)</div>
-                      </div>
-                    </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Desktop: side by side */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: font.display, color: C.navy }}>{race.state}</h3>
+                              <Badge color={getRatingColor(race.rating)} bg={getRatingBg(race.rating)}>{race.rating}</Badge>
+                            </div>
+                            <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
+                              {race.incumbent} <span style={{ color: race.party === "D" ? C.dem : C.gop, fontWeight: 600 }}>({race.party})</span> · Trump margin: {race.trumpMargin2024}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: race.indianPop > 100000 ? C.saffron : C.text }}>{(race.indianPop / 1000).toFixed(0)}K</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>INDIAN POP ({race.indianPct}%)</div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                     {expandedSenate === race.state && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderLight}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
                         <strong style={{ color: C.text }}>Key metros:</strong> {race.keyMetros}<br />
