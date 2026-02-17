@@ -580,7 +580,9 @@ function PersuasionBar({ score }) {
 // ═══════════════════════════════════════════════════════════
 
 export default function IndianAmericanVoterAtlas() {
-  const [tab, setTab] = useState("house");
+  const validTabs = ["house", "senate", "election", "safety", "discourse", "perm", "methodology"];
+  const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
+  const [tab, setTab] = useState(validTabs.includes(hashTab) ? hashTab : "house");
   const [sortKey, setSortKey] = useState("densityScore");
   const [sortDir, setSortDir] = useState("desc");
   const [filterCompetitive, setFilterCompetitive] = useState(false);
@@ -615,6 +617,17 @@ export default function IndianAmericanVoterAtlas() {
   const [permStateData, setPermStateData] = useState([]);
 
   useEffect(() => { setLoaded(true); }, []);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const onNav = () => {
+      const h = window.location.hash.replace("#", "");
+      if (validTabs.includes(h)) setTab(h);
+      else setTab("house");
+    };
+    window.addEventListener("popstate", onNav);
+    return () => window.removeEventListener("popstate", onNav);
+  }, []);
 
   // Fetch from Supabase — silent fallback to hardcoded data on error
   useEffect(() => {
@@ -729,7 +742,7 @@ export default function IndianAmericanVoterAtlas() {
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
+            <button key={t.key} onClick={() => { window.history.pushState(null, "", t.key === "house" ? window.location.pathname : `#${t.key}`); setTab(t.key); }} style={{
               padding: isMobile ? "10px 12px" : "14px 20px", fontSize: isMobile ? 11 : 13, fontWeight: tab === t.key ? 700 : 500,
               fontFamily: font.body, border: "none", cursor: "pointer",
               background: "transparent",
