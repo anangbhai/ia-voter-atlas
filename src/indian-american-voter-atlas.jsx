@@ -598,6 +598,7 @@ export default function IndianAmericanVoterAtlas() {
   const [permDistrict, setPermDistrict] = useState("TX-22");
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
   const [permEmpYear, setPermEmpYear] = useState("");
+  const [methOpen, setMethOpen] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
 
@@ -1920,66 +1921,82 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The Community Density Index measures where Indian Americans are civically active. The Persuasion Index measures where that civic activity can be converted into electoral outcomes. The DOL PERM Data tab provides 17 years of employment-based green card sponsorship data as an independent economic signal.
+                Two proprietary indices power this dashboard. The DOL PERM Data tab provides 17 years of employment-based green card sponsorship data as an independent economic signal.
               </p>
             </div>
 
-            {/* COMMUNITY DENSITY INDEX */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>Community Density Index</h3>
-            <p style={{ fontSize: 13, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-              A composite score (0–100) measuring not just where Indian Americans live, but where they are civically and economically active. Census alone misses the picture — our index captures political donor behavior, cultural infrastructure, economic presence, and digital engagement.
-            </p>
-
-            <div style={{ display: "grid", gap: 16, marginBottom: 32 }}>
-              {DENSITY_METHODS.map((m, i) => (
-                <Card key={i}>
-                  <div style={{ padding: "18px 22px", display: "flex", gap: 16, alignItems: "start" }}>
-                    <div style={{ fontSize: 24, lineHeight: 1 }}>{m.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.navy }}>{m.name}</h4>
-                        <div style={{
-                          fontSize: 13, fontWeight: 800, fontFamily: font.mono, color: C.saffronText,
-                          background: C.saffronBg, padding: "2px 8px", borderRadius: 4,
-                        }}>{m.weight}%</div>
-                      </div>
-                      <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
-                    </div>
+            {/* COMMUNITY DENSITY INDEX — ACCORDION */}
+            <Card style={{ marginBottom: 12 }}>
+              <div
+                onClick={() => setMethOpen(methOpen === "density" ? null : "density")}
+                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index</h3>
+                    <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
                   </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* PERSUASION INDEX */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>
-              <span style={{ color: "#6D28D9" }}>NEW</span> — Indian American Persuasion Index
-            </h3>
-            <p style={{ fontSize: 13, color: C.textSecondary, margin: "0 0 6px", lineHeight: 1.6 }}>
-              A composite score (0–100) answering the question campaigns and PACs are actually asking: <strong style={{ color: C.text }}>"Where should I spend money to move Indian American voters?"</strong>
-            </p>
-            <p style={{ fontSize: 13, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
-              Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district can have 100,000 Indian Americans and a low persuasion score if the seat is uncontested — there's no race to influence. Conversely, a district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
-            </p>
-
-            <div style={{ display: "grid", gap: 16, marginBottom: 32 }}>
-              {PERSUASION_METHODS.map((m, i) => (
-                <Card key={i}>
-                  <div style={{ padding: "18px 22px", display: "flex", gap: 16, alignItems: "start" }}>
-                    <div style={{ fontSize: 24, lineHeight: 1 }}>{m.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.navy }}>{m.name}</h4>
-                        <div style={{
-                          fontSize: 13, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9",
-                          background: "#EDE9FE", padding: "2px 8px", borderRadius: 4,
-                        }}>{m.weight}%</div>
+                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                    Where Indian Americans are civically and economically active — not just where they live. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement.
+                  </p>
+                </div>
+                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "density" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
+              </div>
+              {methOpen === "density" && (
+                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
+                  {DENSITY_METHODS.map((m, i) => (
+                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: C.saffronText, background: C.saffronBg, padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                       </div>
-                      <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* PERSUASION INDEX — ACCORDION */}
+            <Card style={{ marginBottom: 24 }}>
+              <div
+                onClick={() => setMethOpen(methOpen === "persuasion" ? null : "persuasion")}
+                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Indian American Persuasion Index</h3>
+                    <Badge color="#6D28D9" bg="#EDE9FE">0–100</Badge>
                   </div>
-                </Card>
-              ))}
-            </div>
+                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                    Where campaigns should spend money to move Indian American voters. A district can have 100K Indian Americans and score low if the seat is uncontested.
+                  </p>
+                </div>
+                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "persuasion" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
+              </div>
+              {methOpen === "persuasion" && (
+                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
+                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
+                    Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
+                  </p>
+                  {PERSUASION_METHODS.map((m, i) => (
+                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < PERSUASION_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9", background: "#EDE9FE", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
             {/* RANKED DISTRICTS — SIDE BY SIDE */}
             <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>District Rankings</h3>
