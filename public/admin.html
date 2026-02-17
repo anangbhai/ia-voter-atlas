@@ -446,14 +446,21 @@
             <h3 class="display" style="font-size:16px; color:#1E3A5F;">🗽 H-1B & Green Card Backlog</h3>
             <span class="badge badge-green">DOL / USCIS</span>
           </div>
-          <p class="text-muted mb-16">Pulls PERM labor certification data (green card step 1) from the Department of Labor. Shows how many Indian-born workers in each state are in the employment-based immigration pipeline — the #1 political issue for many Indian Americans.</p>
-          <div class="flex gap-8 mb-8" style="flex-wrap:wrap;">
-            <select id="dol-year" style="width:auto;">
-              <option value="FY2024">FY2024</option>
-              <option value="FY2023">FY2023</option>
-            </select>
+          <p class="text-muted mb-16">Parses PERM labor certification data (green card step 1) from the Department of Labor. Shows how many Indian-born workers in each state are in the employment-based immigration pipeline.</p>
+          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+            <p style="margin:0 0 8px; font-size:13px; font-weight:600; color:#166534;">Step 1: Download the file from DOL</p>
+            <p style="margin:0 0 4px; font-size:12px; color:#15803D;">Go to the DOL disclosure page and download the PERM Excel file for the year you want:</p>
+            <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+              <a href="https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2025.xlsx" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">FY2025 PERM (Q1) ↗</a>
+              <a href="https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2024.xlsx" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">FY2024 PERM ↗</a>
+              <a href="https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_FY2023.xlsx" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">FY2023 PERM ↗</a>
+            </div>
           </div>
-          <button class="btn btn-saffron" id="btn-dol" onclick="runDOL()">Pull DOL Data</button>
+          <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+            <p style="margin:0 0 8px; font-size:13px; font-weight:600; color:#1E40AF;">Step 2: Upload it here</p>
+            <input type="file" id="dol-file" accept=".xlsx,.xls,.csv" style="font-size:13px;" onchange="handleDOLUpload(this)" />
+            <p style="margin:4px 0 0; font-size:11px; color:#6B7280;">Accepts .xlsx files (15-20MB). Parsed entirely in your browser — nothing uploaded to any server.</p>
+          </div>
           <div id="dol-status" class="mt-12"></div>
           <div id="dol-preview" class="mt-12"></div>
           <button class="btn btn-primary mt-12 hidden" id="btn-dol-save" onclick="saveDOLData()">Save to Database</button>
@@ -494,13 +501,8 @@
             <span class="badge" style="background:#FEE2E2; color:#991B1B;">YouTube API</span>
           </div>
           <p class="text-muted mb-16">Search YouTube for videos about Indian American politics, immigration, and community issues. Track videos to build a curated discourse feed for the dashboard. View counts serve as an engagement proxy.</p>
-          <div class="form-group mb-8">
-            <label>YouTube API Key</label>
-            <div class="flex gap-8">
-              <input type="password" id="yt-api-key" placeholder="Paste your YouTube Data API v3 key" style="flex:1;" />
-              <button class="btn btn-sm btn-outline" onclick="$('yt-api-key').type = $('yt-api-key').type === 'password' ? 'text' : 'password'">Show</button>
-            </div>
-            <p class="text-muted mt-4" style="font-size:11px;">Free at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#1E40AF;">console.cloud.google.com</a> → Create Credentials → API Key → Enable "YouTube Data API v3"</p>
+          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:8px 12px; margin-bottom:12px;">
+            <p style="margin:0; font-size:11px; color:#166534;">✓ YouTube API key configured — restricted to voteratlas.io + YouTube Data API v3</p>
           </div>
           <div class="flex gap-8 mb-16" style="flex-wrap:wrap;">
             <input type="text" id="yt-query" placeholder="Search (e.g. Indian American vote, H-1B green card)" style="flex:1; min-width:200px;" />
@@ -1187,30 +1189,16 @@ const TRACKED_STATES = new Set(Object.keys(STATE_TO_DISTRICTS));
 
 let dolResults = null;
 
-async function runDOL() {
-  const btn = $('btn-dol');
-  btn.disabled = true;
-  const fy = $('dol-year').value;
-  showStatus('dol-status', `⏳ Fetching ${fy} PERM disclosure data from DOL... (this may take 30-60 seconds for a large file)`, true);
+async function handleDOLUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const fy = file.name.includes('2025') ? 'FY2025' : file.name.includes('2023') ? 'FY2023' : 'FY2024';
+  showStatus('dol-status', `⏳ Reading ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)...`, true);
 
   try {
-    // DOL PERM disclosure file URLs
-    const urls = {
-      'FY2024': 'https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2024.xlsx',
-      'FY2023': 'https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2023.xlsx',
-    };
-    const fileUrl = urls[fy];
-    if (!fileUrl) throw new Error('Unknown fiscal year');
-
-    // Use CORS proxy since DOL doesn't allow cross-origin requests
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fileUrl)}`;
-
-    showStatus('dol-status', `⏳ Downloading ${fy} PERM data via CORS proxy...`, true);
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`Download failed: ${res.status}. The DOL file may have moved — try the other fiscal year.`);
-
-    const arrayBuffer = await res.arrayBuffer();
-    showStatus('dol-status', `⏳ Parsing Excel file (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)...`, true);
+    const arrayBuffer = await file.arrayBuffer();
+    showStatus('dol-status', `⏳ Parsing Excel file...`, true);
 
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1363,7 +1351,6 @@ async function runDOL() {
   } catch (err) {
     showStatus('dol-status', `Error: ${err.message}`, false);
   }
-  btn.disabled = false;
 }
 
 async function saveDOLData() {
@@ -1607,10 +1594,9 @@ function switchYTView(view) {
 }
 
 async function searchYouTube() {
-  const key = $('yt-api-key').value.trim();
+  const key = 'REDACTED';
   const query = $('yt-query').value.trim();
   const order = $('yt-order').value;
-  if (!key) { showStatus('yt-status', 'Enter your YouTube API key above.', false); return; }
   if (!query) { showStatus('yt-status', 'Enter a search term.', false); return; }
 
   showStatus('yt-status', `⏳ Searching YouTube for "${query}"...`, true);
@@ -1790,8 +1776,7 @@ async function untrackVideo(videoId) {
 }
 
 async function refreshYTStats() {
-  const key = $('yt-api-key').value.trim();
-  if (!key) { alert('Enter your YouTube API key first.'); return; }
+  const key = 'REDACTED';
 
   const { data } = await sb.from('youtube_tracker').select('video_id');
   if (!data?.length) { alert('No tracked videos to refresh.'); return; }
