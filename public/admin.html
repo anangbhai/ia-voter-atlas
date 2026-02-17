@@ -722,78 +722,78 @@ out center;`;
 
     const hindu = temples.filter(t => t.religion === 'hindu').length;
     const sikh = temples.filter(t => t.religion === 'sikh').length;
-    showStatus('overpass-status', `✓ Found ${temples.length} places of worship (${hindu} Hindu, ${sikh} Sikh). Now mapping to congressional districts...`, true);
+    showStatus('overpass-status', `✓ Found ${temples.length} places of worship (${hindu} Hindu, ${sikh} Sikh). Mapping to districts...`, true);
 
-    // Map to CDs using Census TIGERweb
-    $('overpass-progress').classList.remove('hidden');
-    let mapped = 0;
-    const results = [];
+    // District center coordinates (same as dashboard)
+    const DISTRICT_CENTERS = {
+      "CA-17": [37.36, -121.97], "NJ-07": [40.63, -74.55], "IL-08": [42.03, -88.08],
+      "CA-06": [38.58, -121.49], "TX-22": [29.62, -95.64], "NJ-11": [40.86, -74.40],
+      "VA-10": [39.04, -77.49], "WA-07": [47.61, -122.33], "TX-10": [30.27, -96.40],
+      "MI-13": [42.33, -83.05], "NJ-06": [40.52, -74.35], "GA-07": [33.96, -84.07],
+      "NY-03": [40.76, -73.58], "PA-06": [40.03, -75.61], "NC-09": [35.23, -80.84],
+      "TX-24": [32.81, -96.95], "CA-16": [37.34, -121.89], "NJ-12": [40.35, -74.66],
+      "VA-11": [38.83, -77.28], "NY-04": [40.72, -73.56], "CA-14": [37.70, -121.93],
+      "NJ-05": [41.00, -74.15], "MD-08": [39.08, -77.15], "CA-32": [34.19, -118.53],
+    };
 
-    for (let i = 0; i < temples.length; i++) {
-      const t = temples[i];
-      try {
-        const geoRes = await fetch(
-          `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${t.lng}&y=${t.lat}&benchmark=Public_AR_Current&vintage=Current_Current&format=json`
-        );
-        const geoData = await geoRes.json();
-        const cds = geoData?.result?.geographies?.['119th Congressional Districts'] ||
-                    geoData?.result?.geographies?.['118th Congressional Districts'] || [];
-        if (cds.length) {
-          const cd = cds[0];
-          const stAbbr = FIPS[cd.STATE] || cd.STATE;
-          const distNum = parseInt(cd.BASENAME);
-          const distId = `${stAbbr}-${String(distNum).padStart(2, '0')}`;
-          results.push({ ...t, district_id: distId, state_fips: cd.STATE, district_num: cd.BASENAME });
-        } else {
-          results.push({ ...t, district_id: null, state_fips: null, district_num: null });
-        }
-      } catch {
-        results.push({ ...t, district_id: null, state_fips: null, district_num: null });
-      }
-      mapped++;
-      $('overpass-fill').style.width = `${(mapped / temples.length * 100).toFixed(0)}%`;
+    // Radius in km — congressional districts are roughly 30-50km across
+    const MAX_RADIUS_KM = 35;
 
-      // Show running count every 10
-      if (mapped % 10 === 0 || mapped === temples.length) {
-        showStatus('overpass-status', `Mapping: ${mapped}/${temples.length} complete...`, true);
-      }
-
-      // Throttle: 500ms between requests
-      if (i < temples.length - 1) await sleep(500);
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
+
+    // Assign each temple to nearest tracked district (if within radius)
+    const results = temples.map(t => {
+      let bestDist = Infinity, bestId = null;
+      for (const [id, [cLat, cLng]] of Object.entries(DISTRICT_CENTERS)) {
+        const d = haversineKm(t.lat, t.lng, cLat, cLng);
+        if (d < bestDist) { bestDist = d; bestId = id; }
+      }
+      return {
+        ...t,
+        district_id: bestDist <= MAX_RADIUS_KM ? bestId : null,
+        distance_km: Math.round(bestDist),
+      };
+    });
 
     // Aggregate per tracked district
     const counts = {};
-    TRACKED_DISTRICTS.forEach(d => counts[d] = { hindu: 0, sikh: 0, total: 0 });
-    results.forEach(r => {
-      if (r.district_id && TRACKED_DISTRICTS.has(r.district_id)) {
-        if (r.religion === 'hindu') counts[r.district_id].hindu++;
-        else if (r.religion === 'sikh') counts[r.district_id].sikh++;
-        counts[r.district_id].total++;
-      }
+    TRACKED_DISTRICTS.forEach(d => counts[d] = { hindu: 0, sikh: 0, total: 0, names: [] });
+    const inDistrict = results.filter(r => r.district_id);
+    inDistrict.forEach(r => {
+      if (r.religion === 'hindu') counts[r.district_id].hindu++;
+      else if (r.religion === 'sikh') counts[r.district_id].sikh++;
+      counts[r.district_id].total++;
+      if (r.name !== 'Unnamed') counts[r.district_id].names.push(r.name);
     });
 
     overpassResults = { raw: results, counts };
 
-    // Show preview
     const trackedWithData = Object.entries(counts).filter(([, c]) => c.total > 0).sort((a, b) => b[1].total - a[1].total);
-    const unmapped = results.filter(r => !r.district_id).length;
-    const outsideTracked = results.filter(r => r.district_id && !TRACKED_DISTRICTS.has(r.district_id)).length;
+    const outside = results.filter(r => !r.district_id).length;
 
-    let html = `<p class="text-sm mb-8"><strong>${results.length}</strong> temples mapped. <strong>${trackedWithData.length}</strong> of your 24 districts have temples. ${unmapped} couldn't be geocoded. ${outsideTracked} are in other districts.</p>`;
-    html += '<table class="preview-table"><tr><th>District</th><th>Hindu</th><th>Sikh</th><th>Total</th></tr>';
+    let html = `<p class="text-sm mb-8"><strong>${temples.length}</strong> temples found nationwide. <strong>${inDistrict.length}</strong> are within ${MAX_RADIUS_KM}km of your 24 tracked district centers. <strong>${trackedWithData.length}</strong> districts have at least one temple. ${outside} are in other areas.</p>`;
+    html += '<table class="preview-table"><tr><th>District</th><th>Hindu</th><th>Sikh</th><th>Total</th><th>Examples</th></tr>';
     trackedWithData.forEach(([id, c]) => {
-      html += `<tr><td class="mono font-bold">${id}</td><td>${c.hindu}</td><td>${c.sikh}</td><td><strong>${c.total}</strong></td></tr>`;
+      const examples = c.names.slice(0, 2).join(', ') + (c.names.length > 2 ? ` +${c.names.length - 2} more` : '');
+      html += `<tr><td class="mono font-bold">${id}</td><td>${c.hindu}</td><td>${c.sikh}</td><td><strong>${c.total}</strong></td><td class="text-muted" style="font-size:11px; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${examples}</td></tr>`;
     });
     html += '</table>';
+    html += `<p class="text-muted mt-8">Method: Haversine distance from temple coordinates to district center. Radius: ${MAX_RADIUS_KM}km. Some edge-case misassignments possible near district borders.</p>`;
     $('overpass-preview').innerHTML = html;
     $('btn-overpass-save').classList.remove('hidden');
-    showStatus('overpass-status', `✓ Mapping complete! Review the table below and click Save.`, true);
+    showStatus('overpass-status', `✓ Mapping complete! ${inDistrict.length} temples in tracked districts. Review and save.`, true);
 
   } catch (err) {
     showStatus('overpass-status', `Error: ${err.message}`, false);
   }
   btn.disabled = false;
+  $('overpass-progress').classList.add('hidden');
 }
 
 async function saveOverpassData() {
@@ -807,21 +807,22 @@ async function saveOverpassData() {
     await sb.from('osm_temples').delete().neq('id', 0);
     await sb.from('district_temple_counts').delete().neq('district_id', '');
 
-    // Insert raw temples (in batches of 50)
-    const rows = overpassResults.raw.map(r => ({
+    // Insert raw temples (only those in tracked districts, in batches of 50)
+    const rows = overpassResults.raw.filter(r => r.district_id).map(r => ({
       osm_id: r.osm_id, name: r.name, religion: r.religion,
       lat: r.lat, lng: r.lng, district_id: r.district_id,
-      state_fips: r.state_fips, district_num: r.district_num,
     }));
     for (let i = 0; i < rows.length; i += 50) {
-      await sb.from('osm_temples').insert(rows.slice(i, i + 50));
+      const { error } = await sb.from('osm_temples').insert(rows.slice(i, i + 50));
+      if (error) throw error;
     }
 
     // Insert counts
     const countRows = Object.entries(overpassResults.counts).map(([id, c]) => ({
       district_id: id, hindu_temples: c.hindu, sikh_gurdwaras: c.sikh, total: c.total,
     }));
-    await sb.from('district_temple_counts').insert(countRows);
+    const { error } = await sb.from('district_temple_counts').insert(countRows);
+    if (error) throw error;
 
     showStatus('overpass-status', `✓ Saved ${rows.length} temples and ${countRows.length} district counts to database.`, true);
     btn.classList.add('hidden');
@@ -842,20 +843,60 @@ async function runCensus() {
   showStatus('census-status', '⏳ Querying Census ACS for language data...', true);
 
   try {
-    // Pull C16001 (language spoken at home) at congressional district level
-    // C16001_001E = total, C16001_002E = English only
-    // We'll also try the detailed B16001 table for specific languages
-    const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,C16001_001E,C16001_002E,C16001_036E,C16001_037E,C16001_038E,C16001_039E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+    // Strategy: try multiple ACS vintages and variable combos
+    // C16001: Language Spoken at Home (Collapsed)
+    // 001E = Total pop 5+
+    // 015E = Other Indo-European languages (Hindi, Gujarati, Urdu, Punjabi, Bengali) - total speakers
+    // 017E = Other Indo-European - Speak English less than "very well" (LEP)
+    // 030E = Other Asian & PI languages (Telugu, Tamil, Kannada, Malayalam) - total speakers
+    // 032E = Other Asian & PI - Speak English less than "very well" (LEP)
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Census API returned ${res.status}`);
-    const data = await res.json();
+    const vintages = ['2022', '2021', '2023'];
+    let data = null;
+    let usedVintage = null;
+
+    for (const yr of vintages) {
+      showStatus('census-status', `⏳ Trying ACS ${yr}...`, true);
+      try {
+        const vars = 'NAME,C16001_001E,C16001_015E,C16001_017E,C16001_030E,C16001_032E';
+        const url = `https://api.census.gov/data/${yr}/acs/acs5?get=${vars}&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          data = await res.json();
+          usedVintage = yr;
+          break;
+        }
+      } catch (e) { /* try next vintage */ }
+    }
+
+    // If collapsed table fails, try with just total + English only (always available)
+    if (!data) {
+      showStatus('census-status', '⏳ Detailed language table unavailable at CD level. Trying simplified approach...', true);
+      const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B16004_001E,B16004_067E,B16004_068E,B16004_069E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        data = await res.json();
+        usedVintage = '2022-B16004';
+      }
+    }
+
+    if (!data) {
+      // Last resort: try the simplest possible language query
+      const url = `https://api.census.gov/data/2022/acs/acs5/profile?get=NAME,DP02_0113E,DP02_0114E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        data = await res.json();
+        usedVintage = '2022-DP02';
+      } else {
+        const errText = await res.text();
+        throw new Error(`All Census language tables returned errors. Last attempt: ${res.status} — ${errText.substring(0, 300)}`);
+      }
+    }
 
     const headers = data[0];
     const rows = data.slice(1);
-
-    // Map to our districts
     censusResults = [];
+
     rows.forEach(row => {
       const stFips = row[headers.indexOf('state')];
       const cdNum = row[headers.indexOf('congressional district')];
@@ -864,36 +905,57 @@ async function runCensus() {
       const distId = `${stAbbr}-${String(parseInt(cdNum)).padStart(2, '0')}`;
       if (!TRACKED_DISTRICTS.has(distId)) return;
 
-      const totalPop5plus = parseInt(row[headers.indexOf('C16001_001E')]) || 0;
-      const englishOnly = parseInt(row[headers.indexOf('C16001_002E')]) || 0;
-      // C16001_036E through 039E cover "Other Asian and Pacific Island languages"
-      const otherAsianTotal = parseInt(row[headers.indexOf('C16001_036E')]) || 0;
-      const otherAsianVeryWell = parseInt(row[headers.indexOf('C16001_037E')]) || 0;
-      const otherAsianWell = parseInt(row[headers.indexOf('C16001_038E')]) || 0;
-      const otherAsianNotWell = parseInt(row[headers.indexOf('C16001_039E')]) || 0;
-      const lep = otherAsianWell + otherAsianNotWell;
+      let totalPop5plus = 0, totalSpeakers = 0, totalLEP = 0;
+
+      if (usedVintage && !usedVintage.includes('-')) {
+        // C16001 approach (preferred)
+        totalPop5plus = parseInt(row[headers.indexOf('C16001_001E')]) || 0;
+        const indoEuroTotal = parseInt(row[headers.indexOf('C16001_015E')]) || 0;
+        const indoEuroLEP = parseInt(row[headers.indexOf('C16001_017E')]) || 0;
+        const otherAsianTotal = parseInt(row[headers.indexOf('C16001_030E')]) || 0;
+        const otherAsianLEP = parseInt(row[headers.indexOf('C16001_032E')]) || 0;
+        totalSpeakers = indoEuroTotal + otherAsianTotal;
+        totalLEP = indoEuroLEP + otherAsianLEP;
+      } else if (usedVintage === '2022-B16004') {
+        totalPop5plus = parseInt(row[headers.indexOf('B16004_001E')]) || 0;
+        totalSpeakers = parseInt(row[headers.indexOf('B16004_067E')]) || 0;
+        totalLEP = parseInt(row[headers.indexOf('B16004_068E')]) || 0;
+      } else {
+        // DP02 fallback - less granular
+        totalPop5plus = parseInt(row[headers.indexOf('DP02_0113E')]) || 0;
+        totalSpeakers = parseInt(row[headers.indexOf('DP02_0114E')]) || 0;
+        totalLEP = 0; // not available in this table
+      }
 
       censusResults.push({
         district_id: distId,
         total_pop_5plus: totalPop5plus,
-        south_asian_lang_speakers: otherAsianTotal,
-        south_asian_lep: lep,
-        lep_pct: totalPop5plus > 0 ? parseFloat((lep / totalPop5plus * 100).toFixed(2)) : 0,
-        data_vintage: 'ACS 2018-2022',
+        south_asian_lang_speakers: totalSpeakers,
+        south_asian_lep: totalLEP,
+        lep_pct: totalPop5plus > 0 ? parseFloat((totalLEP / totalPop5plus * 100).toFixed(2)) : 0,
+        data_vintage: `ACS 5-Year (${usedVintage})`,
       });
     });
 
     censusResults.sort((a, b) => b.south_asian_lang_speakers - a.south_asian_lang_speakers);
 
-    let html = `<p class="text-sm mb-8">Language data for <strong>${censusResults.length}</strong> tracked districts. Note: "Other Asian languages" is a broad Census category — includes South Asian languages but isn't exclusive to them.</p>`;
-    html += '<table class="preview-table"><tr><th>District</th><th>Asian Lang. Speakers</th><th>LEP Count</th><th>LEP %</th></tr>';
+    let caveat = '';
+    if (usedVintage && !usedVintage.includes('-')) {
+      caveat = '"Other Indo-European" (Hindi, Gujarati, Urdu, Punjabi) + "Other Asian" (Telugu, Tamil, Kannada). Both categories include some non–South Asian languages — treat as upper-bound.';
+    } else {
+      caveat = 'Used fallback table — less granular than preferred. Language categories are broader.';
+    }
+
+    let html = `<p class="text-sm mb-8">Language data for <strong>${censusResults.length}</strong> tracked districts. Source: ACS ${usedVintage}.</p>`;
+    html += `<p class="text-muted mb-8">${caveat}</p>`;
+    html += '<table class="preview-table"><tr><th>District</th><th>S. Asian Lang. Speakers</th><th>LEP Count</th><th>LEP %</th></tr>';
     censusResults.forEach(r => {
       html += `<tr><td class="mono font-bold">${r.district_id}</td><td>${r.south_asian_lang_speakers.toLocaleString()}</td><td>${r.south_asian_lep.toLocaleString()}</td><td>${r.lep_pct}%</td></tr>`;
     });
     html += '</table>';
     $('census-preview').innerHTML = html;
     $('btn-census-save').classList.remove('hidden');
-    showStatus('census-status', `✓ Data pulled for ${censusResults.length} districts. Review and save.`, true);
+    showStatus('census-status', `✓ Data pulled for ${censusResults.length} districts (${usedVintage}). Review and save.`, true);
 
   } catch (err) {
     showStatus('census-status', `Error: ${err.message}`, false);
