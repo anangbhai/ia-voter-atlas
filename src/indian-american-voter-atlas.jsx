@@ -47,6 +47,20 @@ function mapIncident(row) { const r = toCamel(row); delete r.id; return r; }
 function mapDiscourse(row) { const r = toCamel(row); delete r.id; return r; }
 function mapNarrative(row) { const r = toCamel(row); delete r.id; return r; }
 function mapPresVote(row) { return toCamel(row); }
+function mapPermDistrict(row) { return toCamel(row); }
+function mapPermState(row) { return toCamel(row); }
+
+// Local median household income by district (Census ACS — approximate)
+const LOCAL_MEDIAN_INCOME = {
+  'CA-17': 168000, 'CA-06': 105000, 'CA-14': 128000, 'CA-16': 142000, 'CA-32': 82000,
+  'NJ-06': 85000, 'NJ-07': 120000, 'NJ-11': 130000, 'NJ-12': 78000, 'NJ-05': 105000,
+  'TX-22': 95000, 'TX-24': 88000, 'TX-03': 105000,
+  'VA-10': 145000, 'VA-11': 125000,
+  'IL-08': 90000, 'GA-07': 85000,
+  'NY-03': 115000, 'NY-04': 105000,
+  'WA-07': 110000, 'MD-06': 95000,
+  'PA-06': 100000, 'NC-02': 80000, 'MI-13': 32000,
+};
 function mapGenderAge(row) {
   const r = toCamel(row);
   // demoGroup → group
@@ -578,6 +592,10 @@ export default function IndianAmericanVoterAtlas() {
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
   const [mapColorMode, setMapColorMode] = useState("density");
+  const [permSubTab, setPermSubTab] = useState("trend");
+  const [permDistrict, setPermDistrict] = useState("TX-22");
+  const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
+  const [permEmpYear, setPermEmpYear] = useState("");
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
 
@@ -593,6 +611,8 @@ export default function IndianAmericanVoterAtlas() {
   const [partyId, setPartyId] = useState(PARTY_ID);
   const [topIssues, setTopIssues] = useState(TOP_ISSUES);
   const [precinctSwings, setPrecinctSwings] = useState(PRECINCT_SWINGS);
+  const [permDistrictData, setPermDistrictData] = useState([]);
+  const [permStateData, setPermStateData] = useState([]);
 
   useEffect(() => { setLoaded(true); }, []);
 
@@ -600,11 +620,12 @@ export default function IndianAmericanVoterAtlas() {
   useEffect(() => {
     async function load() {
       try {
-        const [dist, sen, fbi, inc, disc, narr, pres, gender, pid, issues, prec] = await Promise.all([
+        const [dist, sen, fbi, inc, disc, narr, pres, gender, pid, issues, prec, permDist, permSt] = await Promise.all([
           supaFetch("districts"), supaFetch("senate_races"), supaFetch("fbi_trend_data"),
           supaFetch("temple_incidents"), supaFetch("discourse_events"), supaFetch("narrative_items"),
           supaFetch("pres_vote_trend"), supaFetch("gender_age_vote"), supaFetch("party_id"),
           supaFetch("top_issues"), supaFetch("precinct_swings"),
+          supaFetch("h1b_perm_by_district"), supaFetch("h1b_state_summary"),
         ]);
         if (dist.length) setDistricts(dist.map(mapDistrict));
         if (sen.length) setSenateRaces(sen.map(mapSenate));
@@ -617,6 +638,16 @@ export default function IndianAmericanVoterAtlas() {
         if (pid.length) setPartyId(pid.map(mapPartyId));
         if (issues.length) setTopIssues(issues.map(mapIssue));
         if (prec.length) setPrecinctSwings(prec.map(mapPrecinct));
+        if (permDist.length) {
+          const mapped = permDist.map(mapPermDistrict);
+          setPermDistrictData(mapped);
+          const dists = [...new Set(mapped.map(r => r.districtId))].sort();
+          if (dists.includes("TX-22")) { setPermDistrict("TX-22"); setPermEmpDistrict("TX-22"); }
+          else if (dists.length) { setPermDistrict(dists[0]); setPermEmpDistrict(dists[0]); }
+          const years = [...new Set(mapped.map(r => r.dataFiscalYear))].sort().reverse();
+          if (years.length) setPermEmpYear(years[0]);
+        }
+        if (permSt.length) setPermStateData(permSt.map(mapPermState));
       } catch (e) {
         console.warn("Supabase fetch failed, using defaults:", e.message);
       }
@@ -650,6 +681,7 @@ export default function IndianAmericanVoterAtlas() {
     { key: "election", label: "2024 Election" },
     { key: "safety", label: "Community Safety" },
     { key: "discourse", label: "Discourse Monitor" },
+    { key: "perm", label: "DOL PERM Data" },
     { key: "methodology", label: "Methodology" },
   ];
 
@@ -1525,6 +1557,330 @@ export default function IndianAmericanVoterAtlas() {
           </div>
         )}
 
+        {/* ═══ DOL PERM DATA TAB ═══ */}
+        {tab === "perm" && (() => {
+          const permDistricts = [...new Set(permDistrictData.map(r => r.districtId))].sort();
+          const permYears = [...new Set(permDistrictData.map(r => r.dataFiscalYear))].sort();
+          const permYearsDesc = [...permYears].reverse();
+
+          // Summary stats
+          const totalIndia = permDistrictData.reduce((s, r) => s + (r.permIndia || 0), 0);
+          const yearRange = permYears.length > 0 ? `${permYears[0]}–${permYears[permYears.length - 1]}` : "—";
+          const latestYear = permYears[permYears.length - 1];
+          const latestRows = permDistrictData.filter(r => r.dataFiscalYear === latestYear && r.avgOfferedWage);
+          const avgWage = latestRows.length > 0 ? Math.round(latestRows.reduce((s, r) => s + r.avgOfferedWage, 0) / latestRows.length) : null;
+          const cumulative = {};
+          permDistrictData.forEach(r => { cumulative[r.districtId] = (cumulative[r.districtId] || 0) + (r.permIndia || 0); });
+          const topDist = Object.entries(cumulative).sort((a, b) => b[1] - a[1])[0];
+
+          // Trend data for selected district
+          const trendRows = permDistrictData.filter(r => r.districtId === permDistrict).sort((a, b) => a.dataFiscalYear.localeCompare(b.dataFiscalYear));
+          const trendMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
+          const trendCumTotal = trendRows.reduce((s, r) => s + (r.permIndia || 0), 0);
+
+          // Wage comparison
+          const wageByDist = {};
+          permDistrictData.forEach(r => {
+            if (r.avgOfferedWage && r.avgOfferedWage > 0) {
+              if (!wageByDist[r.districtId] || r.dataFiscalYear > wageByDist[r.districtId].fy) {
+                wageByDist[r.districtId] = { wage: r.avgOfferedWage, fy: r.dataFiscalYear };
+              }
+            }
+          });
+          const wageEntries = permDistricts
+            .filter(d => wageByDist[d] && LOCAL_MEDIAN_INCOME[d])
+            .map(d => ({ district: d, perm: wageByDist[d].wage, local: LOCAL_MEDIAN_INCOME[d], ratio: wageByDist[d].wage / LOCAL_MEDIAN_INCOME[d] }))
+            .sort((a, b) => b.ratio - a.ratio);
+          const wageMax = wageEntries.length > 0 ? Math.max(...wageEntries.map(e => Math.max(e.perm, e.local))) : 1;
+
+          // Employers
+          const empState = permEmpDistrict.split("-")[0];
+          let empRow = permDistrictData.find(r => r.districtId === permEmpDistrict && r.dataFiscalYear === permEmpYear);
+          let empSource = "district";
+          if (!empRow) { empRow = permStateData.find(r => r.state === empState && r.dataFiscalYear === permEmpYear); empSource = "state"; }
+          const employers = empRow?.topEmployers || [];
+          const occupations = empRow?.topOccupations || [];
+
+          // Leaderboard
+          const leaderboard = Object.entries(cumulative).sort((a, b) => b[1] - a[1]);
+          const lbMax = leaderboard[0] ? leaderboard[0][1] : 1;
+
+          // Sub-tabs
+          const permSubs = [
+            { key: "trend", label: "Trend" },
+            { key: "wages", label: "Wages" },
+            { key: "employers", label: "Who's Hiring" },
+            { key: "rankings", label: "Rankings" },
+          ];
+
+          return (
+          <div>
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>
+                DOL PERM Data Explorer
+              </h2>
+              <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 4px", maxWidth: 700, lineHeight: 1.6 }}>
+                Permanent labor certification (PERM) applications filed with the U.S. Department of Labor — a proxy for where Indian American economic roots are deepening through employment-based green card sponsorship.
+              </p>
+              <div style={{ display: "inline-block", padding: "6px 12px", background: C.navyLight, borderRadius: 6, fontSize: 11, color: C.navy, lineHeight: 1.6, marginTop: 8 }}>
+                <strong>Source:</strong> DOL OFLC PERM Disclosure Data ({yearRange}) · Filtered to India-born applicants · Mapped to 119th congressional districts
+              </div>
+            </div>
+
+            {/* Summary strip */}
+            {permDistricts.length === 0 ? (
+              <Card>
+                <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>No PERM Data Loaded</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, color: C.navy, margin: "8px 0" }}>Getting Started</div>
+                  <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
+                    Run <code style={{ background: C.surfaceAlt, padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>process_perm.py</code> on DOL PERM Excel files, then load the SQL into Supabase.
+                  </div>
+                </div>
+              </Card>
+            ) : (
+            <>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+              <Card>
+                <div style={{ padding: "14px 18px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Total India-born PERM</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{totalIndia.toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: C.textSecondary }}>{permDistricts.length} districts, {yearRange}</div>
+                </div>
+              </Card>
+              <Card>
+                <div style={{ padding: "14px 18px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Fiscal Years</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{permYears.length}</div>
+                  <div style={{ fontSize: 11, color: C.textSecondary }}>{yearRange}</div>
+                </div>
+              </Card>
+              <Card>
+                <div style={{ padding: "14px 18px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Avg Offered Wage</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{avgWage ? `$${avgWage.toLocaleString()}` : "—"}</div>
+                  <div style={{ fontSize: 11, color: C.textSecondary }}>{latestYear || "Latest year"} average</div>
+                </div>
+              </Card>
+              <Card>
+                <div style={{ padding: "14px 18px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Top District</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{topDist ? topDist[0] : "—"}</div>
+                  <div style={{ fontSize: 11, color: C.textSecondary }}>{topDist ? `${topDist[1].toLocaleString()} cumulative` : ""}</div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Sub-tabs */}
+            <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 20, overflowX: "auto" }}>
+              {permSubs.map(s => (
+                <button key={s.key} onClick={() => setPermSubTab(s.key)} style={{
+                  padding: "10px 20px", fontSize: 13, fontWeight: permSubTab === s.key ? 700 : 500,
+                  fontFamily: font.body, border: "none", background: "transparent", cursor: "pointer",
+                  color: permSubTab === s.key ? C.navy : C.textMuted,
+                  borderBottom: permSubTab === s.key ? `2px solid ${C.saffron}` : "2px solid transparent",
+                  whiteSpace: "nowrap",
+                }}>{s.label}</button>
+              ))}
+            </div>
+
+            {/* TREND SUB-TAB */}
+            {permSubTab === "trend" && (
+              <Card>
+                <div style={{ padding: "20px 22px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>PERM Certifications Over Time</h3>
+                    <select value={permDistrict} onChange={e => setPermDistrict(e.target.value)} style={{
+                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
+                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
+                    }}>
+                      {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 20px" }}>
+                    {permDistrict} — {trendCumTotal.toLocaleString()} cumulative India-born PERM certifications
+                  </p>
+
+                  {/* Bar chart */}
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 4, height: 200, borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
+                    {trendRows.map(r => {
+                      const total = r.permCertified || 0;
+                      const india = r.permIndia || 0;
+                      const totalPct = (total / trendMax * 100);
+                      const indiaPct = total > 0 ? (india / total * totalPct) : 0;
+                      return (
+                        <div key={r.dataFiscalYear} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end", position: "relative" }}
+                          title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
+                          <div style={{ width: "100%", position: "relative" }}>
+                            <div style={{ width: "100%", height: `${totalPct}%`, minHeight: total > 0 ? 2 : 0, background: C.navyLight, borderRadius: "3px 3px 0 0", position: "absolute", bottom: 0 }} />
+                            <div style={{ width: "100%", height: `${indiaPct}%`, minHeight: india > 0 ? 2 : 0, background: C.saffron, borderRadius: "3px 3px 0 0", position: "absolute", bottom: 0, opacity: 0.85 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Year labels */}
+                  <div style={{ display: "flex", gap: isMobile ? 2 : 4, marginTop: 6 }}>
+                    {trendRows.map(r => (
+                      <div key={r.dataFiscalYear} style={{ flex: 1, textAlign: "center", fontSize: isMobile ? 8 : 10, fontFamily: font.mono, color: C.textMuted }}>
+                        {r.dataFiscalYear.replace("FY", "'")}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Legend */}
+                  <div style={{ display: "flex", gap: 16, marginTop: 14, fontSize: 11, color: C.textSecondary }}>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.saffron, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> India-born certified</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.navyLight, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> All certified</span>
+                  </div>
+
+                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
+                    Note: FY2009 reflects the Great Recession dip. FY2020 shows COVID-era processing delays. FY2024 may reflect incomplete data or policy shifts.
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            {/* WAGES SUB-TAB */}
+            {permSubTab === "wages" && (
+              <Card>
+                <div style={{ padding: "20px 22px" }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>PERM Offered Wage vs. Local Median Income</h3>
+                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
+                    DOL-certified wages compared to Census ACS median household income. Sorted by wage ratio — highest multiplier first.
+                  </p>
+                  <div style={{ display: "flex", gap: 16, marginBottom: 16, fontSize: 11, color: C.textSecondary }}>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.saffron, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> PERM median offered wage</span>
+                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.navy, opacity: 0.3, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> Local median household income</span>
+                  </div>
+
+                  {wageEntries.length === 0 ? (
+                    <p style={{ color: C.textMuted, textAlign: "center", padding: "40px 0" }}>No wage comparison data available.</p>
+                  ) : wageEntries.map(e => (
+                    <div key={e.district} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: C.text, flexShrink: 0 }}>{e.district}</div>
+                      <div style={{ flex: 1, position: "relative", height: 18 }}>
+                        <div style={{ position: "absolute", height: 8, top: 5, left: 0, width: `${(e.local / wageMax * 100).toFixed(1)}%`, background: C.navy, opacity: 0.2, borderRadius: 4 }} />
+                        <div style={{ position: "absolute", height: 8, top: 5, left: 0, width: `${(e.perm / wageMax * 100).toFixed(1)}%`, background: C.saffron, opacity: 0.85, borderRadius: 4 }} />
+                      </div>
+                      <div style={{ width: 90, textAlign: "right", fontSize: 12, fontFamily: font.mono, flexShrink: 0 }}>
+                        ${Math.round(e.perm / 1000)}K{" "}
+                        <span style={{ color: e.ratio >= 1.5 ? "#166534" : C.text, fontWeight: 600, fontSize: 10 }}>{e.ratio.toFixed(1)}×</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
+                    PERM offered wages are from the most recent fiscal year with data. Local median income from Census ACS 5-year estimates. PERM wages reflect individual salaries; median household income may include multiple earners. Districts without verified local income data are excluded.
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            {/* EMPLOYERS SUB-TAB */}
+            {permSubTab === "employers" && (
+              <Card>
+                <div style={{ padding: "20px 22px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Top Employers & Occupations</h3>
+                    <select value={permEmpDistrict} onChange={e => setPermEmpDistrict(e.target.value)} style={{
+                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
+                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
+                    }}>
+                      {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select value={permEmpYear} onChange={e => setPermEmpYear(e.target.value)} style={{
+                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
+                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
+                    }}>
+                      {permYearsDesc.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Source badge */}
+                  {empRow ? (
+                    <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
+                      {permEmpYear} •{" "}
+                      {empSource === "state" ? (
+                        <>
+                          <span style={{ display: "inline-block", padding: "2px 8px", background: C.saffronBg, color: C.saffronText, borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.3, verticalAlign: "middle" }}>STATE-LEVEL ({empState})</span>
+                          {" "}District-specific employer data not available; showing state aggregate.
+                        </>
+                      ) : "District-level data"}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 16px" }}>
+                      No PERM data available for {permEmpDistrict} in {permEmpYear}. Try a different fiscal year.
+                    </p>
+                  )}
+
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
+                    {/* Employers */}
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, marginBottom: 8 }}>Top Employers</div>
+                      {employers.length > 0 ? employers.map((e, i) => (
+                        <div key={i} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }}>
+                          <span style={{ fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: C.textMuted, width: 18 }}>{i + 1}</span>
+                          <span>{e}</span>
+                        </div>
+                      )) : (
+                        <p style={{ color: C.textMuted, padding: "20px 0", textAlign: "center", fontSize: 12 }}>No employer data for this selection</p>
+                      )}
+                    </div>
+
+                    {/* Occupations */}
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, marginBottom: 8 }}>Top Occupations</div>
+                      {occupations.length > 0 ? occupations.map((o, i) => (
+                        <div key={i} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }}>
+                          <span style={{ fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: C.textMuted, width: 18 }}>{i + 1}</span>
+                          <span>{o}</span>
+                        </div>
+                      )) : (
+                        <p style={{ color: C.textMuted, padding: "20px 0", textAlign: "center", fontSize: 12 }}>No occupation data for this selection</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
+                    Employer and occupation data from DOL PERM disclosure files. For multi-district states, data may reflect the state-level aggregate.
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            {/* RANKINGS SUB-TAB */}
+            {permSubTab === "rankings" && (
+              <Card>
+                <div style={{ padding: "20px 22px" }}>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Cumulative PERM Volume, {yearRange}</h3>
+                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
+                    Total India-born certified PERM applications by district across all available fiscal years
+                  </p>
+
+                  {leaderboard.map(([dist, total], i) => (
+                    <div key={dist} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                      <div style={{ width: 20, fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: i < 3 ? C.saffronText : C.textMuted, textAlign: "right" }}>{i + 1}</div>
+                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: C.text }}>{dist}</div>
+                      <div style={{ flex: 1, position: "relative", height: 14 }}>
+                        <div style={{ position: "absolute", height: 10, top: 2, left: 0, width: `${(total / lbMax * 100).toFixed(1)}%`, background: `linear-gradient(90deg, ${C.saffron}, ${C.navy})`, opacity: 0.7, borderRadius: 4 }} />
+                      </div>
+                      <div style={{ width: 70, textAlign: "right", fontSize: 12, fontFamily: font.mono, fontWeight: 600 }}>{total.toLocaleString()}</div>
+                    </div>
+                  ))}
+
+                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
+                    Cumulative totals sum all available fiscal years. Districts in single-tracked states receive exact state totals. Multi-district states are split proportionally by Indian American population share.
+                  </p>
+                </div>
+              </Card>
+            )}
+            </>
+            )}
+          </div>
+          );
+        })()}
+
         {/* ═══ METHODOLOGY TAB ═══ */}
         {tab === "methodology" && (
           <div>
@@ -1533,7 +1889,7 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The Community Density Index measures where Indian Americans are civically active. The Persuasion Index measures where that civic activity can be converted into electoral outcomes.
+                Two proprietary indices power this dashboard. The Community Density Index measures where Indian Americans are civically active. The Persuasion Index measures where that civic activity can be converted into electoral outcomes. The DOL PERM Data tab provides 17 years of employment-based green card sponsorship data as an independent economic signal.
               </p>
             </div>
 
@@ -1649,7 +2005,7 @@ export default function IndianAmericanVoterAtlas() {
               <div style={{ padding: "18px 22px" }}>
                 <h4 style={{ fontSize: 14, fontWeight: 700, color: C.navy, margin: "0 0 12px" }}>Data Sources</h4>
                 <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.8, fontFamily: font.body }}>
-                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · Google Trends API · Google Places API · USCIS H-1B employer data · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
+                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · Google Trends API · Google Places API · USCIS H-1B employer data · DOL OFLC PERM Disclosure Data (FY2008–FY2024) · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
                 </div>
               </div>
             </Card>
@@ -1661,7 +2017,7 @@ export default function IndianAmericanVoterAtlas() {
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: isMobile ? "20px 16px" : "24px 32px", background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, lineHeight: 1.8 }}>
-            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, AAPI Data, FBI UCR<br />
+            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, AAPI Data, FBI UCR, DOL PERM<br />
             Methodology: Community Density Index v1.0 · Persuasion Index v1.0 · Not affiliated with any political campaign or party<br />
             Published by <span style={{ color: C.saffronText }}>Anang Mittal</span> · Built for civic engagement and public interest research
           </div>
