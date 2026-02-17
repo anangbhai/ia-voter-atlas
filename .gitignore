@@ -1,0 +1,5 @@
+# API Keys — never commit these
+public/config.js
+.env
+.env.local
+.env.*.local

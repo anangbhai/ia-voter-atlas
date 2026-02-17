@@ -521,6 +521,7 @@
   </footer>
 </div>
 
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
@@ -529,10 +530,10 @@
 // CONFIG
 // ═══════════════════════════════════════════════════════════
 
-const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
-const SUPABASE_ANON = "REDACTED";
-const CENSUS_KEY = "REDACTED";
-const CONGRESS_KEY = "REDACTED";
+const SUPABASE_URL = window.APP_CONFIG.SUPABASE_URL;
+const SUPABASE_ANON = window.APP_CONFIG.SUPABASE_ANON;
+const CENSUS_KEY = window.APP_CONFIG.CENSUS_KEY;
+const CONGRESS_KEY = window.APP_CONFIG.CONGRESS_KEY;
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -1359,7 +1360,7 @@ function switchYTView(view) {
 }
 
 async function searchYouTube() {
-  const key = 'REDACTED';
+  const key = window.APP_CONFIG.YOUTUBE_KEY;
   const query = $('yt-query').value.trim();
   const order = $('yt-order').value;
   if (!query) { showStatus('yt-status', 'Enter a search term.', false); return; }
@@ -1541,7 +1542,7 @@ async function untrackVideo(videoId) {
 }
 
 async function refreshYTStats() {
-  const key = 'REDACTED';
+  const key = window.APP_CONFIG.YOUTUBE_KEY;
 
   const { data } = await sb.from('youtube_tracker').select('video_id');
   if (!data?.length) { alert('No tracked videos to refresh.'); return; }
