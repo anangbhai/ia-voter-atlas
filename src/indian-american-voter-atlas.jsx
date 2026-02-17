@@ -257,7 +257,7 @@ const DENSITY_METHODS = [
   { name: "FEC Donor Surname Analysis", weight: 20, description: "FEC individual contribution data filtered using validated South Asian surname lists (methodology from AAPI Data/Karthick Ramakrishnan).", icon: "💰" },
   { name: "Cultural Business Density", weight: 20, description: "Google Places API density of Indian restaurants, grocery stores, temples/gurdwaras, and cultural centers per capita.", icon: "🏪" },
   { name: "Google Trends Proxy", weight: 15, description: "DMA-level search interest for terms like 'Diwali', 'Indian grocery', 'H-1B visa', 'cricket score'.", icon: "🔍" },
-  { name: "USCIS H-1B Data", weight: 5, description: "H-1B employer location data as proxy for recent immigration clusters not yet captured by census.", icon: "📋" },
+  { name: "USCIS H-1B & DOL PERM Data", weight: 5, description: "H-1B employer location data and DOL PERM labor certification volumes (FY2008–FY2024) as proxies for recent immigration clusters and employer-sponsored green card demand not yet captured by census.", icon: "📋" },
 ];
 
 const PERSUASION_METHODS = [
@@ -675,6 +675,15 @@ export default function IndianAmericanVoterAtlas() {
     return a.state.localeCompare(b.state);
   });
 
+  // PERM cumulative by district for cross-tab reference
+  const permCumulative = useMemo(() => {
+    const cum = {};
+    permDistrictData.forEach(r => {
+      cum[r.districtId] = (cum[r.districtId] || 0) + (r.permIndia || 0);
+    });
+    return cum;
+  }, [permDistrictData]);
+
   const tabs = [
     { key: "house", label: "House Districts" },
     { key: "senate", label: "Senate 2026" },
@@ -875,6 +884,7 @@ export default function IndianAmericanVoterAtlas() {
                   {expandedRow === d.id && (
                     <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
                       <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
+                      {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
                       <br />{d.notes}
                     </div>
                   )}
@@ -925,6 +935,7 @@ export default function IndianAmericanVoterAtlas() {
                       {expandedRow === d.id && (
                         <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
                           <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
+                          {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
                           <br />{d.notes}
                         </div>
                       )}
@@ -1627,6 +1638,13 @@ export default function IndianAmericanVoterAtlas() {
               </div>
             </div>
 
+            {/* Editorial framing */}
+            <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.saffron}` }}>
+              <div style={{ padding: "14px 18px", fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
+                <strong style={{ color: C.navy }}>Reading this data:</strong> A PERM certification is Step 1 of the employment-based green card process — it means the Department of Labor certified that no qualified U.S. worker was available for the position. It does <em>not</em> mean a green card was issued. Many certified PERMs never result in a green card due to visa backlogs, employer withdrawal, or applicant departure. These numbers measure <strong style={{ color: C.text }}>employer demand for skilled immigrant labor</strong> and serve as a proxy for where Indian American economic roots are deepening — not immigration volume.
+              </div>
+            </Card>
+
             {/* Summary strip */}
             {permDistricts.length === 0 ? (
               <Card>
@@ -1702,18 +1720,18 @@ export default function IndianAmericanVoterAtlas() {
                   </p>
 
                   {/* Bar chart */}
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 4, height: 200, borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 4, height: 200, borderBottom: `1px solid ${C.border}` }}>
                     {trendRows.map(r => {
                       const total = r.permCertified || 0;
                       const india = r.permIndia || 0;
-                      const totalPct = (total / trendMax * 100);
-                      const indiaPct = total > 0 ? (india / total * totalPct) : 0;
+                      const totalH = Math.max(total / trendMax * 190, total > 0 ? 3 : 0);
+                      const indiaH = total > 0 ? Math.max(india / trendMax * 190, india > 0 ? 3 : 0) : 0;
                       return (
-                        <div key={r.dataFiscalYear} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end", position: "relative" }}
+                        <div key={r.dataFiscalYear} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
                           title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
-                          <div style={{ width: "100%", position: "relative" }}>
-                            <div style={{ width: "100%", height: `${totalPct}%`, minHeight: total > 0 ? 2 : 0, background: C.navyLight, borderRadius: "3px 3px 0 0", position: "absolute", bottom: 0 }} />
-                            <div style={{ width: "100%", height: `${indiaPct}%`, minHeight: india > 0 ? 2 : 0, background: C.saffron, borderRadius: "3px 3px 0 0", position: "absolute", bottom: 0, opacity: 0.85 }} />
+                          <div style={{ width: "100%", position: "relative", height: totalH }}>
+                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
+                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
                           </div>
                         </div>
                       );
