@@ -438,6 +438,93 @@
           <div id="verify-preview" class="mt-12"></div>
         </div>
       </div>
+
+      <!-- DOL: H-1B / PERM Green Card -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">🗽 H-1B & Green Card Backlog</h3>
+            <span class="badge badge-green">DOL / USCIS</span>
+          </div>
+          <p class="text-muted mb-16">Pulls PERM labor certification data (green card step 1) from the Department of Labor. Shows how many Indian-born workers in each state are in the employment-based immigration pipeline — the #1 political issue for many Indian Americans.</p>
+          <div class="flex gap-8 mb-8" style="flex-wrap:wrap;">
+            <select id="dol-year" style="width:auto;">
+              <option value="FY2024">FY2024</option>
+              <option value="FY2023">FY2023</option>
+            </select>
+          </div>
+          <button class="btn btn-saffron" id="btn-dol" onclick="runDOL()">Pull DOL Data</button>
+          <div id="dol-status" class="mt-12"></div>
+          <div id="dol-preview" class="mt-12"></div>
+          <button class="btn btn-primary mt-12 hidden" id="btn-dol-save" onclick="saveDOLData()">Save to Database</button>
+        </div>
+      </div>
+
+      <!-- Congress.gov: Bill Tracker -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">📜 Bill Tracker</h3>
+            <span class="badge" style="background:#FEE2E2; color:#991B1B;">Congress.gov</span>
+          </div>
+          <p class="text-muted mb-16">Search Congress.gov for bills relevant to Indian Americans — immigration, H-1B, hate crimes, India relations. Save bills to track their progress on your dashboard.</p>
+          <div class="flex gap-8 mb-16" style="flex-wrap:wrap;">
+            <input type="text" id="bill-query" placeholder="Search keyword (e.g. H-1B, green card, hate crime)" style="flex:1; min-width:200px;" />
+            <button class="btn btn-saffron" onclick="searchBills()">Search</button>
+          </div>
+          <div class="sub-tabs mb-16">
+            <button class="sub-tab active" onclick="switchBillView('search')">Search Results</button>
+            <button class="sub-tab" onclick="switchBillView('tracked')">Tracked Bills (<span id="tracked-count">0</span>)</button>
+          </div>
+          <div id="bill-search-view">
+            <div id="bill-status" class="mt-12"></div>
+            <div id="bill-preview" class="mt-12"></div>
+          </div>
+          <div id="bill-tracked-view" class="hidden">
+            <div id="tracked-bills-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- YouTube: Community Discourse -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">📺 YouTube Community Discourse</h3>
+            <span class="badge" style="background:#FEE2E2; color:#991B1B;">YouTube API</span>
+          </div>
+          <p class="text-muted mb-16">Search YouTube for videos about Indian American politics, immigration, and community issues. Track videos to build a curated discourse feed for the dashboard. View counts serve as an engagement proxy.</p>
+          <div class="form-group mb-8">
+            <label>YouTube API Key</label>
+            <div class="flex gap-8">
+              <input type="password" id="yt-api-key" placeholder="Paste your YouTube Data API v3 key" style="flex:1;" />
+              <button class="btn btn-sm btn-outline" onclick="$('yt-api-key').type = $('yt-api-key').type === 'password' ? 'text' : 'password'">Show</button>
+            </div>
+            <p class="text-muted mt-4" style="font-size:11px;">Free at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#1E40AF;">console.cloud.google.com</a> → Create Credentials → API Key → Enable "YouTube Data API v3"</p>
+          </div>
+          <div class="flex gap-8 mb-16" style="flex-wrap:wrap;">
+            <input type="text" id="yt-query" placeholder="Search (e.g. Indian American vote, H-1B green card)" style="flex:1; min-width:200px;" />
+            <select id="yt-order" style="width:auto;">
+              <option value="relevance">Relevance</option>
+              <option value="viewCount">Most Views</option>
+              <option value="date">Newest</option>
+            </select>
+            <button class="btn btn-saffron" onclick="searchYouTube()">Search</button>
+          </div>
+          <div class="sub-tabs mb-16">
+            <button class="sub-tab active" onclick="switchYTView('search')">Search Results</button>
+            <button class="sub-tab" onclick="switchYTView('tracked')">Tracked Videos (<span id="yt-tracked-count">0</span>)</button>
+            <button class="sub-tab" onclick="refreshYTStats()">↻ Refresh Stats</button>
+          </div>
+          <div id="yt-search-view">
+            <div id="yt-status" class="mt-12"></div>
+            <div id="yt-preview" class="mt-12"></div>
+          </div>
+          <div id="yt-tracked-view" class="hidden">
+            <div id="yt-tracked-list"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ TABLES TAB ═══ -->
@@ -461,6 +548,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
 
 // ═══════════════════════════════════════════════════════════
@@ -470,6 +558,7 @@
 const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
 const SUPABASE_ANON = "REDACTED";
 const CENSUS_KEY = "REDACTED";
+const CONGRESS_KEY = "REDACTED";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -573,6 +662,7 @@ async function loadAdminData() {
 
   // Load table summary
   loadTableSummary();
+  loadTrackedCount();
 }
 
 
@@ -1036,7 +1126,7 @@ async function runVerify() {
 // ═══════════════════════════════════════════════════════════
 
 async function loadTableSummary() {
-  const tables = ['districts','senate_races','fbi_trend_data','temple_incidents','discourse_events','narrative_items','pres_vote_trend','gender_age_vote','party_id','top_issues','precinct_swings','osm_temples','district_temple_counts','census_language'];
+  const tables = ['districts','senate_races','fbi_trend_data','temple_incidents','discourse_events','narrative_items','pres_vote_trend','gender_age_vote','party_id','top_issues','precinct_swings','osm_temples','district_temple_counts','census_language','h1b_perm_by_district','h1b_state_summary','tracked_bills','youtube_tracker','economic_contribution'];
   let html = '<table class="preview-table"><tr><th>Table</th><th>Rows</th></tr>';
   for (const t of tables) {
     const { count } = await sb.from(t).select('*', { count: 'exact', head: true });
@@ -1072,6 +1162,664 @@ function switchSubTab(id) {
   $(id).classList.remove('hidden');
   event.target.classList.add('active');
 }
+
+function switchBillView(view) {
+  $('bill-search-view').classList.toggle('hidden', view !== 'search');
+  $('bill-tracked-view').classList.toggle('hidden', view !== 'tracked');
+  document.querySelectorAll('#tab-loaders .card:last-of-type .sub-tab').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  if (view === 'tracked') loadTrackedBills();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: DOL H-1B / PERM
+// ═══════════════════════════════════════════════════════════
+
+// State abbreviation → tracked districts in that state
+const STATE_TO_DISTRICTS = {};
+TRACKED_DISTRICTS.forEach(d => {
+  const st = d.split('-')[0];
+  if (!STATE_TO_DISTRICTS[st]) STATE_TO_DISTRICTS[st] = [];
+  STATE_TO_DISTRICTS[st].push(d);
+});
+const TRACKED_STATES = new Set(Object.keys(STATE_TO_DISTRICTS));
+
+let dolResults = null;
+
+async function runDOL() {
+  const btn = $('btn-dol');
+  btn.disabled = true;
+  const fy = $('dol-year').value;
+  showStatus('dol-status', `⏳ Fetching ${fy} PERM disclosure data from DOL... (this may take 30-60 seconds for a large file)`, true);
+
+  try {
+    // DOL PERM disclosure file URLs
+    const urls = {
+      'FY2024': 'https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2024.xlsx',
+      'FY2023': 'https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/PERM_Disclosure_Data_FY2023.xlsx',
+    };
+    const fileUrl = urls[fy];
+    if (!fileUrl) throw new Error('Unknown fiscal year');
+
+    // Use CORS proxy since DOL doesn't allow cross-origin requests
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fileUrl)}`;
+
+    showStatus('dol-status', `⏳ Downloading ${fy} PERM data via CORS proxy...`, true);
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`Download failed: ${res.status}. The DOL file may have moved — try the other fiscal year.`);
+
+    const arrayBuffer = await res.arrayBuffer();
+    showStatus('dol-status', `⏳ Parsing Excel file (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)...`, true);
+
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    showStatus('dol-status', `⏳ Processing ${rows.length.toLocaleString()} PERM applications...`, true);
+
+    // Find relevant column names (DOL changes names slightly between years)
+    const sample = rows[0] || {};
+    const cols = Object.keys(sample);
+    const findCol = (patterns) => cols.find(c => patterns.some(p => c.toUpperCase().includes(p))) || null;
+
+    const colStatus = findCol(['CASE_STATUS']);
+    const colState = findCol(['EMPLOYER_STATE', 'WORKSITE_STATE']);
+    const colCountry = findCol(['COUNTRY_OF_CITI', 'FOREIGN_WORKER_BIRTH', 'PW_UNIT_OF_PAY', 'COUNTRY_OF_BIRTH']);
+    const colWage = findCol(['WAGE_OFFER', 'OFFERED_WAGE', 'PW_AMOUNT']);
+    const colEmployer = findCol(['EMPLOYER_NAME']);
+    const colSOC = findCol(['SOC_TITLE', 'PW_SOC_TITLE', 'JOB_TITLE']);
+
+    // Try multiple country column patterns
+    let countryCol = cols.find(c => c.toUpperCase().includes('COUNTRY_OF_CITI'));
+    if (!countryCol) countryCol = cols.find(c => c.toUpperCase().includes('COUNTRY_OF_BIRTH'));
+    if (!countryCol) countryCol = cols.find(c => c.toUpperCase().includes('BIRTH_COUNTRY'));
+    if (!countryCol) countryCol = cols.find(c => c.toUpperCase().includes('FOREIGN_WORKER_INFO_BIRTH'));
+
+    // Process: aggregate by state
+    const stateData = {};
+
+    rows.forEach(row => {
+      const status = (row[colStatus] || '').toString().toUpperCase();
+      if (!status.includes('CERTIFIED')) return; // only count certified applications
+
+      const state = (row[colState] || '').toString().toUpperCase().trim();
+      if (!state || state.length !== 2) return;
+
+      if (!stateData[state]) stateData[state] = { total: 0, india: 0, wages: [], employers: {}, occupations: {} };
+      stateData[state].total++;
+
+      // Check if India-born
+      const country = countryCol ? (row[countryCol] || '').toString().toUpperCase() : '';
+      const isIndia = country.includes('INDIA');
+      if (isIndia) {
+        stateData[state].india++;
+        // Track wage
+        const wage = parseFloat(row[colWage]);
+        if (wage && wage > 10000 && wage < 1000000) stateData[state].wages.push(wage);
+      }
+
+      // Track employers and occupations for India-born
+      if (isIndia) {
+        const emp = (row[colEmployer] || '').toString().trim();
+        if (emp) stateData[state].employers[emp] = (stateData[state].employers[emp] || 0) + 1;
+        const occ = (row[colSOC] || '').toString().trim();
+        if (occ) stateData[state].occupations[occ] = (stateData[state].occupations[occ] || 0) + 1;
+      }
+    });
+
+    // Build results for tracked states
+    const stateSummaries = [];
+    const districtEstimates = [];
+
+    for (const [st, data] of Object.entries(stateData)) {
+      if (!TRACKED_STATES.has(st)) continue;
+
+      const topEmployers = Object.entries(data.employers).sort((a,b) => b[1] - a[1]).slice(0, 5).map(e => e[0]);
+      const topOccupations = Object.entries(data.occupations).sort((a,b) => b[1] - a[1]).slice(0, 5).map(e => e[0]);
+      const avgWage = data.wages.length > 0 ? Math.round(data.wages.reduce((a,b) => a + b) / data.wages.length) : null;
+
+      stateSummaries.push({
+        state: st,
+        perm_total: data.total,
+        perm_india: data.india,
+        perm_india_pct: data.total > 0 ? parseFloat((data.india / data.total * 100).toFixed(1)) : 0,
+        top_employers: topEmployers,
+        data_fiscal_year: fy,
+      });
+
+      // Distribute to districts proportionally by Indian population
+      const districts = STATE_TO_DISTRICTS[st] || [];
+      if (districts.length === 1) {
+        districtEstimates.push({
+          district_id: districts[0],
+          perm_certified: data.total,
+          perm_india: data.india,
+          avg_offered_wage: avgWage,
+          top_employers: topEmployers,
+          top_occupations: topOccupations,
+          data_fiscal_year: fy,
+        });
+      } else if (districts.length > 1) {
+        // Get Indian pop for proportional split
+        const distPops = {};
+        let totalPop = 0;
+        districts.forEach(d => {
+          const dist = allDistricts.find(x => x.id === d);
+          const pop = dist?.indian_pop || 30000;
+          distPops[d] = pop;
+          totalPop += pop;
+        });
+        districts.forEach(d => {
+          const share = totalPop > 0 ? distPops[d] / totalPop : 1 / districts.length;
+          districtEstimates.push({
+            district_id: d,
+            perm_certified: Math.round(data.total * share),
+            perm_india: Math.round(data.india * share),
+            avg_offered_wage: avgWage,
+            top_employers: topEmployers,
+            top_occupations: topOccupations,
+            data_fiscal_year: fy,
+          });
+        });
+      }
+    }
+
+    dolResults = { states: stateSummaries, districts: districtEstimates };
+    districtEstimates.sort((a, b) => b.perm_india - a.perm_india);
+
+    // Column detection report
+    const colReport = countryCol ? `Country column: "${countryCol}"` : '⚠️ Could not find country-of-birth column — India filter may not work';
+
+    // Preview
+    const totalIndia = stateSummaries.reduce((s, r) => s + r.perm_india, 0);
+    const totalAll = stateSummaries.reduce((s, r) => s + r.perm_total, 0);
+
+    let html = `<p class="text-sm mb-8"><strong>${rows.length.toLocaleString()}</strong> total PERM applications in ${fy}. <strong>${totalAll.toLocaleString()}</strong> certified in tracked states. <strong>${totalIndia.toLocaleString()}</strong> from India-born applicants.</p>`;
+    html += `<p class="text-muted mb-8">${colReport}</p>`;
+
+    // State summary
+    html += '<h4 style="font-size:13px; font-weight:700; margin:16px 0 8px; color:#1E3A5F;">By State</h4>';
+    html += '<table class="preview-table"><tr><th>State</th><th>PERM Total</th><th>India-Born</th><th>India %</th><th>Top Employer</th></tr>';
+    stateSummaries.sort((a, b) => b.perm_india - a.perm_india);
+    stateSummaries.forEach(r => {
+      html += `<tr><td class="mono font-bold">${r.state}</td><td>${r.perm_total.toLocaleString()}</td><td><strong>${r.perm_india.toLocaleString()}</strong></td><td>${r.perm_india_pct}%</td><td class="text-muted" style="font-size:11px;">${r.top_employers[0] || '—'}</td></tr>`;
+    });
+    html += '</table>';
+
+    // District estimates
+    html += '<h4 style="font-size:13px; font-weight:700; margin:16px 0 8px; color:#1E3A5F;">Estimated by District (proportional to Indian pop)</h4>';
+    html += '<table class="preview-table"><tr><th>District</th><th>PERM India Est.</th><th>Avg Wage</th><th>Top Occupation</th></tr>';
+    districtEstimates.forEach(r => {
+      html += `<tr><td class="mono font-bold">${r.district_id}</td><td><strong>${r.perm_india.toLocaleString()}</strong></td><td>${r.avg_offered_wage ? '$' + r.avg_offered_wage.toLocaleString() : '—'}</td><td class="text-muted" style="font-size:11px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.top_occupations[0] || '—'}</td></tr>`;
+    });
+    html += '</table>';
+    html += '<p class="text-muted mt-8">District estimates are proportional to Indian American population within each state. States with one tracked district get exact state totals. Multi-district states are split by population share.</p>';
+
+    $('dol-preview').innerHTML = html;
+    $('btn-dol-save').classList.remove('hidden');
+    showStatus('dol-status', `✓ ${fy} PERM data processed. ${totalIndia.toLocaleString()} India-born certifications across ${stateSummaries.length} tracked states. Review and save.`, true);
+
+  } catch (err) {
+    showStatus('dol-status', `Error: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+async function saveDOLData() {
+  if (!dolResults) return;
+  const btn = $('btn-dol-save');
+  btn.disabled = true;
+
+  try {
+    // Upsert state summaries
+    await sb.from('h1b_state_summary').delete().neq('state', '');
+    if (dolResults.states.length) {
+      const { error } = await sb.from('h1b_state_summary').insert(dolResults.states);
+      if (error) throw error;
+    }
+
+    // Upsert district estimates
+    await sb.from('h1b_perm_by_district').delete().neq('district_id', '');
+    if (dolResults.districts.length) {
+      const { error } = await sb.from('h1b_perm_by_district').insert(dolResults.districts);
+      if (error) throw error;
+    }
+
+    showStatus('dol-status', `✓ Saved ${dolResults.states.length} state summaries and ${dolResults.districts.length} district estimates.`, true);
+    btn.classList.add('hidden');
+  } catch (err) {
+    showStatus('dol-status', `Error saving: ${err.message}`, false);
+  }
+  btn.disabled = false;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: CONGRESS.GOV BILL TRACKER
+// ═══════════════════════════════════════════════════════════
+
+let billSearchResults = [];
+
+async function searchBills() {
+  const query = $('bill-query').value.trim();
+  if (!query) { showStatus('bill-status', 'Enter a search term.', false); return; }
+
+  showStatus('bill-status', `⏳ Searching Congress.gov for "${query}"...`, true);
+
+  try {
+    // Search current congress (119th)
+    const url = `https://api.congress.gov/v3/bill?query=${encodeURIComponent(query)}&limit=20&sort=updateDate+desc&api_key=${CONGRESS_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Congress API returned ${res.status}: ${text.substring(0, 200)}`);
+    }
+    const data = await res.json();
+    const bills = data.bills || [];
+
+    if (!bills.length) {
+      showStatus('bill-status', `No bills found for "${query}". Try broader terms like "immigration" or "India".`, true);
+      $('bill-preview').innerHTML = '';
+      return;
+    }
+
+    billSearchResults = bills;
+
+    let html = `<p class="text-sm mb-8">${bills.length} results for "${query}". Click Track to add a bill to your dashboard.</p>`;
+    html += '<div style="display:grid; gap:10px;">';
+
+    bills.forEach((bill, i) => {
+      const congress = bill.congress || '';
+      const type = bill.type || '';
+      const number = bill.number || '';
+      const billId = `${type.toLowerCase()}${number}-${congress}`;
+      const title = bill.title || 'No title';
+      const latestAction = bill.latestAction?.text || 'No action recorded';
+      const latestDate = bill.latestAction?.actionDate || '';
+      const policyArea = bill.policyArea?.name || '';
+      const url = bill.url || '';
+
+      html += `<div class="card" style="border-color:#E8E3D8;">
+        <div class="card-body" style="padding:12px 16px;">
+          <div class="flex justify-between items-center" style="flex-wrap:wrap; gap:8px;">
+            <div style="flex:1; min-width:200px;">
+              <div class="flex gap-8 items-center mb-4">
+                <span class="mono font-bold" style="font-size:13px; color:#1E3A5F;">${type}${number}</span>
+                <span class="badge" style="background:#F1F5F9; color:#4A5568;">${congress}th Congress</span>
+                ${policyArea ? `<span class="badge badge-saffron">${policyArea}</span>` : ''}
+              </div>
+              <div style="font-size:13px; line-height:1.5; margin-bottom:6px;">${title.length > 150 ? title.substring(0, 150) + '...' : title}</div>
+              <div class="text-muted" style="font-size:11px;">
+                ${latestDate}: ${latestAction.length > 100 ? latestAction.substring(0, 100) + '...' : latestAction}
+              </div>
+            </div>
+            <div class="flex gap-8">
+              <button class="btn btn-sm btn-saffron" onclick="trackBill(${i})">Track</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+
+    $('bill-preview').innerHTML = html;
+    showStatus('bill-status', `✓ Found ${bills.length} bills.`, true);
+
+  } catch (err) {
+    showStatus('bill-status', `Error: ${err.message}`, false);
+  }
+}
+
+async function trackBill(index) {
+  const bill = billSearchResults[index];
+  if (!bill) return;
+
+  const congress = bill.congress || 119;
+  const type = (bill.type || '').toLowerCase();
+  const number = bill.number || 0;
+  const billId = `${type}${number}-${congress}`;
+
+  // Determine relevance tag from title keywords
+  const titleLower = (bill.title || '').toLowerCase();
+  let relevanceTag = 'other';
+  if (titleLower.includes('h-1b') || titleLower.includes('h1b')) relevanceTag = 'h1b';
+  else if (titleLower.includes('green card') || titleLower.includes('immigrant visa') || titleLower.includes('employment-based')) relevanceTag = 'green_card';
+  else if (titleLower.includes('hate') || titleLower.includes('discrimination') || titleLower.includes('bias')) relevanceTag = 'hate_crimes';
+  else if (titleLower.includes('india') || titleLower.includes('indo-pacific')) relevanceTag = 'india_relations';
+  else if (titleLower.includes('immigration') || titleLower.includes('visa')) relevanceTag = 'immigration';
+  else if (titleLower.includes('sikh') || titleLower.includes('hindu')) relevanceTag = 'civil_rights';
+
+  // Determine status
+  const action = (bill.latestAction?.text || '').toLowerCase();
+  let status = 'introduced';
+  if (action.includes('became public law') || action.includes('signed by president')) status = 'enacted';
+  else if (action.includes('passed senate') && action.includes('passed house')) status = 'passed_both';
+  else if (action.includes('passed senate')) status = 'passed_senate';
+  else if (action.includes('passed house')) status = 'passed_house';
+  else if (action.includes('committee')) status = 'committee';
+
+  const row = {
+    bill_id: billId,
+    congress,
+    bill_type: type,
+    bill_number: number,
+    title: bill.title || '',
+    latest_action: bill.latestAction?.text || '',
+    latest_action_date: bill.latestAction?.actionDate || '',
+    status,
+    policy_area: bill.policyArea?.name || '',
+    relevance_tag: relevanceTag,
+    url: `https://www.congress.gov/bill/${congress}th-congress/${type === 'hr' ? 'house-bill' : type === 's' ? 'senate-bill' : type + '-bill'}/${number}`,
+  };
+
+  const { error } = await sb.from('tracked_bills').upsert(row, { onConflict: 'bill_id' });
+  if (error) {
+    alert(`Error tracking bill: ${error.message}`);
+  } else {
+    // Update button to show tracked
+    event.target.textContent = '✓ Tracked';
+    event.target.disabled = true;
+    event.target.classList.remove('btn-saffron');
+    event.target.classList.add('btn-outline');
+    // Update count
+    const { count } = await sb.from('tracked_bills').select('*', { count: 'exact', head: true });
+    $('tracked-count').textContent = count || 0;
+  }
+}
+
+async function loadTrackedBills() {
+  const { data, error } = await sb.from('tracked_bills').select('*').order('latest_action_date', { ascending: false });
+  if (error) { $('tracked-bills-list').innerHTML = `<div class="status status-error">Error: ${error.message}</div>`; return; }
+  if (!data?.length) { $('tracked-bills-list').innerHTML = '<p class="text-muted">No tracked bills yet. Search and click Track to add bills.</p>'; return; }
+
+  $('tracked-count').textContent = data.length;
+
+  const tagColors = {
+    h1b: { bg: '#DBEAFE', color: '#1E40AF' },
+    green_card: { bg: '#ECFDF5', color: '#047857' },
+    hate_crimes: { bg: '#FEF2F2', color: '#991B1B' },
+    india_relations: { bg: '#FFFBEB', color: '#92400E' },
+    immigration: { bg: '#EDE9FE', color: '#6D28D9' },
+    civil_rights: { bg: '#FEF3C7', color: '#92400E' },
+    other: { bg: '#F5F2EB', color: '#4A5568' },
+  };
+
+  let html = '<div style="display:grid; gap:10px;">';
+  data.forEach(b => {
+    const tc = tagColors[b.relevance_tag] || tagColors.other;
+    const statusLabel = (b.status || 'introduced').replace('_', ' ');
+    html += `<div class="card" style="border-color:#E8E3D8;">
+      <div class="card-body" style="padding:12px 16px;">
+        <div class="flex justify-between items-center" style="flex-wrap:wrap; gap:8px;">
+          <div style="flex:1; min-width:200px;">
+            <div class="flex gap-8 items-center mb-4">
+              <span class="mono font-bold" style="font-size:13px; color:#1E3A5F;">${b.bill_type?.toUpperCase()}${b.bill_number}</span>
+              <span class="badge" style="background:${tc.bg}; color:${tc.color};">${b.relevance_tag?.replace('_',' ')}</span>
+              <span class="badge" style="background:#F1F5F9; color:#4A5568;">${statusLabel}</span>
+            </div>
+            <div style="font-size:13px; line-height:1.5; margin-bottom:6px;">${b.title?.length > 150 ? b.title.substring(0, 150) + '...' : b.title}</div>
+            <div class="text-muted" style="font-size:11px;">
+              ${b.latest_action_date || ''}: ${b.latest_action || 'No action'}
+            </div>
+          </div>
+          <div class="flex gap-8">
+            <a href="${b.url}" target="_blank" class="btn btn-sm btn-outline">View ↗</a>
+            <button class="btn btn-sm btn-danger" onclick="untrackBill('${b.bill_id}')">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  $('tracked-bills-list').innerHTML = html;
+}
+
+async function untrackBill(billId) {
+  if (!confirm('Remove this bill from tracking?')) return;
+  await sb.from('tracked_bills').delete().eq('bill_id', billId);
+  loadTrackedBills();
+}
+
+// Load tracked count on admin init
+async function loadTrackedCount() {
+  const { count } = await sb.from('tracked_bills').select('*', { count: 'exact', head: true });
+  $('tracked-count').textContent = count || 0;
+  const { count: ytCount } = await sb.from('youtube_tracker').select('*', { count: 'exact', head: true });
+  $('yt-tracked-count').textContent = ytCount || 0;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DATA LOADER: YOUTUBE
+// ═══════════════════════════════════════════════════════════
+
+let ytSearchResults = [];
+
+function switchYTView(view) {
+  $('yt-search-view').classList.toggle('hidden', view !== 'search');
+  $('yt-tracked-view').classList.toggle('hidden', view !== 'tracked');
+  // Update active sub-tab styling
+  const tabs = $('yt-search-view').closest('.card-body').querySelectorAll('.sub-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  if (view === 'tracked') loadTrackedVideos();
+}
+
+async function searchYouTube() {
+  const key = $('yt-api-key').value.trim();
+  const query = $('yt-query').value.trim();
+  const order = $('yt-order').value;
+  if (!key) { showStatus('yt-status', 'Enter your YouTube API key above.', false); return; }
+  if (!query) { showStatus('yt-status', 'Enter a search term.', false); return; }
+
+  showStatus('yt-status', `⏳ Searching YouTube for "${query}"...`, true);
+
+  try {
+    // Step 1: Search
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&order=${order}&q=${encodeURIComponent(query)}&key=${key}`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) {
+      const err = await searchRes.json();
+      throw new Error(err.error?.message || `YouTube API returned ${searchRes.status}`);
+    }
+    const searchData = await searchRes.json();
+    const items = searchData.items || [];
+
+    if (!items.length) {
+      showStatus('yt-status', `No results for "${query}".`, true);
+      $('yt-preview').innerHTML = '';
+      return;
+    }
+
+    // Step 2: Get video stats (views, likes, etc.)
+    const videoIds = items.map(i => i.id.videoId).join(',');
+    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails&id=${videoIds}&key=${key}`;
+    const statsRes = await fetch(statsUrl);
+    const statsData = await statsRes.json();
+    const statsMap = {};
+    (statsData.items || []).forEach(v => { statsMap[v.id] = { stats: v.statistics, duration: v.contentDetails?.duration }; });
+
+    ytSearchResults = items.map(item => {
+      const s = statsMap[item.id.videoId] || {};
+      return {
+        video_id: item.id.videoId,
+        title: item.snippet.title,
+        channel_name: item.snippet.channelTitle,
+        channel_id: item.snippet.channelId,
+        published_at: item.snippet.publishedAt,
+        thumbnail_url: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
+        view_count: parseInt(s.stats?.viewCount) || 0,
+        like_count: parseInt(s.stats?.likeCount) || 0,
+        comment_count: parseInt(s.stats?.commentCount) || 0,
+        duration: s.duration || '',
+        url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+      };
+    });
+
+    // Render
+    let html = `<p class="text-sm mb-8">${ytSearchResults.length} results. Click Track to add to your dashboard feed.</p>`;
+    html += '<div style="display:grid; gap:10px;">';
+
+    ytSearchResults.forEach((v, i) => {
+      const views = v.view_count >= 1000000 ? (v.view_count / 1000000).toFixed(1) + 'M' : v.view_count >= 1000 ? (v.view_count / 1000).toFixed(0) + 'K' : v.view_count;
+      const date = v.published_at ? new Date(v.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+      html += `<div class="card" style="border-color:#E8E3D8;">
+        <div class="card-body" style="padding:12px 16px;">
+          <div class="flex gap-12" style="flex-wrap:wrap;">
+            <img src="${v.thumbnail_url}" alt="" style="width:160px; height:90px; object-fit:cover; border-radius:6px; flex-shrink:0;" />
+            <div style="flex:1; min-width:200px;">
+              <div style="font-size:13px; font-weight:600; line-height:1.4; margin-bottom:4px;">${v.title}</div>
+              <div class="text-muted" style="font-size:11px; margin-bottom:6px;">
+                ${v.channel_name} · ${date} · <strong>${views}</strong> views · ${v.like_count.toLocaleString()} likes
+              </div>
+              <div class="flex gap-8">
+                <select id="yt-tag-${i}" style="width:auto; padding:4px 8px; font-size:11px;">
+                  <option value="policy">Policy</option>
+                  <option value="h1b">H-1B / Immigration</option>
+                  <option value="elections">Elections</option>
+                  <option value="hate_crimes">Hate Crimes</option>
+                  <option value="culture">Culture</option>
+                  <option value="diaspora">Diaspora</option>
+                  <option value="green_card">Green Card</option>
+                </select>
+                <button class="btn btn-sm btn-saffron" onclick="trackVideo(${i})">Track</button>
+                <a href="${v.url}" target="_blank" class="btn btn-sm btn-outline">Watch ↗</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+
+    $('yt-preview').innerHTML = html;
+    showStatus('yt-status', `✓ Found ${ytSearchResults.length} videos.`, true);
+
+  } catch (err) {
+    showStatus('yt-status', `Error: ${err.message}`, false);
+  }
+}
+
+async function trackVideo(index) {
+  const v = ytSearchResults[index];
+  if (!v) return;
+
+  const tag = $(`yt-tag-${index}`)?.value || 'policy';
+  const row = {
+    video_id: v.video_id,
+    title: v.title,
+    channel_name: v.channel_name,
+    channel_id: v.channel_id,
+    published_at: v.published_at,
+    view_count: v.view_count,
+    like_count: v.like_count,
+    comment_count: v.comment_count,
+    duration: v.duration,
+    topic_tag: tag,
+    thumbnail_url: v.thumbnail_url,
+    url: v.url,
+    stats_updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await sb.from('youtube_tracker').upsert(row, { onConflict: 'video_id' });
+  if (error) {
+    alert(`Error: ${error.message}`);
+  } else {
+    event.target.textContent = '✓ Tracked';
+    event.target.disabled = true;
+    event.target.classList.remove('btn-saffron');
+    event.target.classList.add('btn-outline');
+    const { count } = await sb.from('youtube_tracker').select('*', { count: 'exact', head: true });
+    $('yt-tracked-count').textContent = count || 0;
+  }
+}
+
+async function loadTrackedVideos() {
+  const { data, error } = await sb.from('youtube_tracker').select('*').order('view_count', { ascending: false });
+  if (error) { $('yt-tracked-list').innerHTML = `<div class="status status-error">Error: ${error.message}</div>`; return; }
+  if (!data?.length) { $('yt-tracked-list').innerHTML = '<p class="text-muted">No tracked videos yet.</p>'; return; }
+
+  $('yt-tracked-count').textContent = data.length;
+
+  const tagColors = {
+    h1b: { bg: '#DBEAFE', color: '#1E40AF' },
+    green_card: { bg: '#ECFDF5', color: '#047857' },
+    hate_crimes: { bg: '#FEF2F2', color: '#991B1B' },
+    elections: { bg: '#EDE9FE', color: '#6D28D9' },
+    policy: { bg: '#FFFBEB', color: '#92400E' },
+    culture: { bg: '#FEF3C7', color: '#92400E' },
+    diaspora: { bg: '#F0FDF4', color: '#166534' },
+  };
+
+  let html = '<div style="display:grid; gap:10px;">';
+  data.forEach(v => {
+    const tc = tagColors[v.topic_tag] || { bg: '#F5F2EB', color: '#4A5568' };
+    const views = v.view_count >= 1000000 ? (v.view_count / 1000000).toFixed(1) + 'M' : v.view_count >= 1000 ? (v.view_count / 1000).toFixed(0) + 'K' : v.view_count;
+    const date = v.published_at ? new Date(v.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+    html += `<div class="card" style="border-color:#E8E3D8;">
+      <div class="card-body" style="padding:12px 16px;">
+        <div class="flex gap-12" style="flex-wrap:wrap;">
+          ${v.thumbnail_url ? `<img src="${v.thumbnail_url}" alt="" style="width:120px; height:68px; object-fit:cover; border-radius:4px; flex-shrink:0;" />` : ''}
+          <div style="flex:1; min-width:200px;">
+            <div class="flex gap-8 items-center mb-4">
+              <span class="badge" style="background:${tc.bg}; color:${tc.color};">${v.topic_tag?.replace('_',' ')}</span>
+              <span class="text-muted mono" style="font-size:10px;">${views} views</span>
+            </div>
+            <div style="font-size:13px; font-weight:600; line-height:1.4; margin-bottom:4px;">${v.title}</div>
+            <div class="text-muted" style="font-size:11px;">${v.channel_name} · ${date}</div>
+          </div>
+          <div class="flex gap-8" style="align-self:center;">
+            <a href="${v.url}" target="_blank" class="btn btn-sm btn-outline">Watch ↗</a>
+            <button class="btn btn-sm btn-danger" onclick="untrackVideo('${v.video_id}')">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  $('yt-tracked-list').innerHTML = html;
+}
+
+async function untrackVideo(videoId) {
+  if (!confirm('Remove this video?')) return;
+  await sb.from('youtube_tracker').delete().eq('video_id', videoId);
+  loadTrackedVideos();
+}
+
+async function refreshYTStats() {
+  const key = $('yt-api-key').value.trim();
+  if (!key) { alert('Enter your YouTube API key first.'); return; }
+
+  const { data } = await sb.from('youtube_tracker').select('video_id');
+  if (!data?.length) { alert('No tracked videos to refresh.'); return; }
+
+  showStatus('yt-status', '⏳ Refreshing view counts...', true);
+
+  // Batch in groups of 50
+  for (let i = 0; i < data.length; i += 50) {
+    const batch = data.slice(i, i + 50);
+    const ids = batch.map(v => v.video_id).join(',');
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) continue;
+    const result = await res.json();
+    for (const item of (result.items || [])) {
+      await sb.from('youtube_tracker').update({
+        view_count: parseInt(item.statistics.viewCount) || 0,
+        like_count: parseInt(item.statistics.likeCount) || 0,
+        comment_count: parseInt(item.statistics.commentCount) || 0,
+        stats_updated_at: new Date().toISOString(),
+      }).eq('video_id', item.id);
+    }
+  }
+
+  showStatus('yt-status', `✓ Updated stats for ${data.length} videos.`, true);
+  loadTrackedVideos();
+}
+
 
 </script>
 </body>
