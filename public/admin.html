@@ -1519,13 +1519,33 @@ function discEsc(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+async function discProxyFetch(targetUrl) {
+  const proxies = [
+    targetUrl,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+  ];
+  let lastErr = '';
+  for (const url of proxies) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
+      const text = await res.text();
+      if (!text || text.trim() === '') { lastErr = 'Empty response'; continue; }
+      return JSON.parse(text);
+    } catch(e) {
+      lastErr = e.message;
+    }
+  }
+  throw new Error('All endpoints failed. Last: ' + lastErr);
+}
+
 async function discFetchGdeltDoc(query, timespan, maxRecords) {
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=artlist&maxrecords=${maxRecords}&timespan=${timespan}&sort=hybridrel&format=json`;
-  let res;
-  try { res = await fetch(url); }
-  catch { res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
-  if (!res.ok) throw new Error(`GDELT DOC HTTP ${res.status}`);
-  const data = await res.json();
+  const data = await discProxyFetch(url);
   return (data.articles||[]).map(a=>({
     title: a.title||'(no title)', url: a.url||'',
     domain: a.domain||discExtractDomain(a.url),
@@ -1536,14 +1556,11 @@ async function discFetchGdeltDoc(query, timespan, maxRecords) {
 
 async function discFetchGdeltTv(query, timespan) {
   const url = `https://api.gdeltproject.org/api/v2/tv/tv?query=${encodeURIComponent(query)}&mode=clipgallery&maxclips=20&timespan=${timespan}&datacomb=or&format=json`;
-  let res;
-  try { res = await fetch(url); }
-  catch { res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
-  if (!res.ok) throw new Error(`GDELT TV HTTP ${res.status}`);
-  const data = await res.json();
-  return (data.clips||[]).map(c=>({
-    station: c.station||'Unknown', show: c.show||'',
-    date: c.date||'', snippet: c.snippet||'', url: c.previewUrl||'',
+  const data = await discProxyFetch(url);
+  const clips = data.clips || data.show_clips || [];
+  return clips.map(c=>({
+    station: c.station||c.network||'Unknown', show: c.show||c.program||'',
+    date: c.date||c.datetime||'', snippet: c.snippet||c.preview||'', url: c.previewUrl||c.url||'',
   }));
 }
 
@@ -1664,8 +1681,10 @@ async function discFetch(includeGov) {
     discRenderGdelt(discData.articles);
     discSetStatus(`${discData.articles.length} articles. Fetching TV broadcasts…`, 'loading');
   } catch(e) {
-    discSetStatus('GDELT DOC error: ' + e.message, false);
+    const msg = e.message || String(e);
+    discSetStatus('GDELT DOC error: ' + msg, false);
     $('disc-gdeltCount').textContent = 'ERR';
+    console.error('GDELT DOC full error:', e);
   }
 
   try {
