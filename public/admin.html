@@ -1519,33 +1519,37 @@ function discEsc(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-async function discProxyFetch(targetUrl) {
-  const proxies = [
-    targetUrl,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-  ];
-  let lastErr = '';
-  for (const url of proxies) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 12000);
-      const res = await fetch(url, { signal: controller.signal });
+// GDELT uses JSONP to bypass CORS — injects a <script> tag, no fetch needed
+function discGdeltJsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'gdelt_cb_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      script.remove();
+      reject(new Error('GDELT request timed out after 15s'));
+    }, 15000);
+    window[cbName] = (data) => {
       clearTimeout(timer);
-      if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
-      const text = await res.text();
-      if (!text || text.trim() === '') { lastErr = 'Empty response'; continue; }
-      return JSON.parse(text);
-    } catch(e) {
-      lastErr = e.message;
-    }
-  }
-  throw new Error('All endpoints failed. Last: ' + lastErr);
+      delete window[cbName];
+      script.remove();
+      resolve(data);
+    };
+    script.src = url + '&callback=' + cbName;
+    script.onerror = () => {
+      clearTimeout(timer);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('GDELT script load failed — check network'));
+    };
+    document.head.appendChild(script);
+  });
 }
 
 async function discFetchGdeltDoc(query, timespan, maxRecords) {
+  // format=json is ignored when callback= is present; GDELT returns JSONP
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=artlist&maxrecords=${maxRecords}&timespan=${timespan}&sort=hybridrel&format=json`;
-  const data = await discProxyFetch(url);
+  const data = await discGdeltJsonp(url);
   return (data.articles||[]).map(a=>({
     title: a.title||'(no title)', url: a.url||'',
     domain: a.domain||discExtractDomain(a.url),
@@ -1556,7 +1560,7 @@ async function discFetchGdeltDoc(query, timespan, maxRecords) {
 
 async function discFetchGdeltTv(query, timespan) {
   const url = `https://api.gdeltproject.org/api/v2/tv/tv?query=${encodeURIComponent(query)}&mode=clipgallery&maxclips=20&timespan=${timespan}&datacomb=or&format=json`;
-  const data = await discProxyFetch(url);
+  const data = await discGdeltJsonp(url);
   const clips = data.clips || data.show_clips || [];
   return clips.map(c=>({
     station: c.station||c.network||'Unknown', show: c.show||c.program||'',
@@ -1565,10 +1569,13 @@ async function discFetchGdeltTv(query, timespan) {
 }
 
 async function discFetchGovInfo(query, apiKey) {
+  // GovInfo blocks browser CORS — routed through /api/govinfo Vercel serverless function
   if (!apiKey) return [];
-  const url = `https://api.govinfo.gov/search?query=${encodeURIComponent(query)}&pageSize=20&offsetMark=*&collections=CREC&api_key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { headers: { 'X-Api-Key': apiKey } });
-  if (!res.ok) throw new Error(`GovInfo HTTP ${res.status}`);
+  const res = await fetch(`/api/govinfo?query=${encodeURIComponent(query)}&api_key=${encodeURIComponent(apiKey)}`);
+  if (!res.ok) {
+    const err = await res.text().catch(()=>'');
+    throw new Error(`GovInfo proxy HTTP ${res.status}: ${err.slice(0,120)}`);
+  }
   const data = await res.json();
   return (data.results||[]).map(r=>({
     title: r.title||r.packageId||'(no title)',
