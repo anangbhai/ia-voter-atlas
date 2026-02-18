@@ -1,9 +1,10 @@
-// api/govinfo.js  —  Vercel serverless function
+// api/govinfo.js — Vercel serverless function
 // Proxies GovInfo Congressional Record search server-side to bypass browser CORS.
-// Deploy by placing this file at /api/govinfo.js in your Vercel project root.
+// Place at /api/govinfo.js in your Vercel project root.
 
 export default async function handler(req, res) {
-  // Only allow GET
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -14,29 +15,39 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required params: query, api_key' });
   }
 
-  const govUrl = new URL('https://api.govinfo.gov/search');
-  govUrl.searchParams.set('query', query);
-  govUrl.searchParams.set('pageSize', '20');
-  govUrl.searchParams.set('offsetMark', '*');
-  govUrl.searchParams.set('collections', 'CREC');
-  govUrl.searchParams.set('api_key', api_key);
+  // Build URL manually — api_key goes in header only, not query string
+  const params = [
+    'query=' + encodeURIComponent(query),
+    'pageSize=20',
+    'offsetMark=%2A',   // literal * encoded
+    'collections=CREC',
+  ];
+  const upstreamUrl = 'https://api.govinfo.gov/search?' + params.join('&');
 
   try {
-    const upstream = await fetch(govUrl.toString(), {
+    const upstream = await fetch(upstreamUrl, {
       headers: {
         'X-Api-Key': api_key,
         'Accept': 'application/json',
       },
+      signal: AbortSignal.timeout(20000),
     });
 
-    const data = await upstream.json();
+    const text = await upstream.text();
 
-    // Forward the response with CORS headers so the browser accepts it
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        error: 'GovInfo non-JSON (HTTP ' + upstream.status + '): ' + text.slice(0, 300),
+      });
+    }
+
     res.setHeader('Content-Type', 'application/json');
     return res.status(upstream.status).json(data);
 
   } catch (err) {
-    return res.status(502).json({ error: 'Upstream GovInfo request failed: ' + err.message });
+    return res.status(502).json({ error: 'GovInfo upstream failed: ' + err.message });
   }
 }
