@@ -464,41 +464,6 @@
           </div>
         </div>
       </div>
-
-      <!-- YouTube: Community Discourse -->
-      <div class="card mb-24">
-        <div class="card-body">
-          <div class="flex justify-between items-center mb-8">
-            <h3 class="display" style="font-size:16px; color:#1E3A5F;">📺 YouTube Community Discourse</h3>
-            <span class="badge" style="background:#FEE2E2; color:#991B1B;">YouTube API</span>
-          </div>
-          <p class="text-muted mb-16">Search YouTube for videos about Indian American politics, immigration, and community issues. Track videos to build a curated discourse feed for the dashboard. View counts serve as an engagement proxy.</p>
-          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:8px 12px; margin-bottom:12px;">
-            <p style="margin:0; font-size:11px; color:#166534;">✓ YouTube API proxied via Supabase Edge Function — key is server-side only</p>
-          </div>
-          <div class="flex gap-8 mb-16" style="flex-wrap:wrap;">
-            <input type="text" id="yt-query" placeholder="Search (e.g. Indian American vote, H-1B green card)" style="flex:1; min-width:200px;" />
-            <select id="yt-order" style="width:auto;">
-              <option value="relevance">Relevance</option>
-              <option value="viewCount">Most Views</option>
-              <option value="date">Newest</option>
-            </select>
-            <button class="btn btn-saffron" onclick="searchYouTube()">Search</button>
-          </div>
-          <div class="sub-tabs mb-16">
-            <button class="sub-tab active" onclick="switchYTView('search')">Search Results</button>
-            <button class="sub-tab" onclick="switchYTView('tracked')">Tracked Videos (<span id="yt-tracked-count">0</span>)</button>
-            <button class="sub-tab" onclick="refreshYTStats()">↻ Refresh Stats</button>
-          </div>
-          <div id="yt-search-view">
-            <div id="yt-status" class="mt-12"></div>
-            <div id="yt-preview" class="mt-12"></div>
-          </div>
-          <div id="yt-tracked-view" class="hidden">
-            <div id="yt-tracked-list"></div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ TABLES TAB ═══ -->
@@ -521,7 +486,6 @@
   </footer>
 </div>
 
-<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
@@ -530,13 +494,12 @@
 // CONFIG
 // ═══════════════════════════════════════════════════════════
 
-const SUPABASE_URL = window.APP_CONFIG.SUPABASE_URL;
-const SUPABASE_ANON = window.APP_CONFIG.SUPABASE_ANON;
-// Census key moved server-side (Supabase Edge Function)
-// Congress key moved server-side (Supabase Edge Function)
+const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YXNnZWVldXRiYmNhaG5ndWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjk1NTksImV4cCI6MjA4Njg0NTU1OX0.JxmwK9sc3PA9f5ws96TxHiqGKJaHBSJ4HI_X9sUtJ88";
+const CENSUS_KEY = "68e162c0f5a104af1875cc4a4729ec4da0848b57";
+const CONGRESS_KEY = "N9HObShPH2bREjqqAn2KtJgxcAaegRAOb49WSm4x";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-const EDGE_FN_BASE = SUPABASE_URL + '/functions/v1';
 
 // State FIPS → abbreviation
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
@@ -790,7 +753,6 @@ out center;`;
     const sikh = temples.filter(t => t.religion === 'sikh').length;
     showStatus('overpass-status', `✓ Found ${temples.length} places of worship (${hindu} Hindu, ${sikh} Sikh). Mapping to districts...`, true);
 
-    // District center coordinates (same as dashboard)
     const DISTRICT_CENTERS = {
       "CA-17": [37.36, -121.97], "NJ-07": [40.63, -74.55], "IL-08": [42.03, -88.08],
       "CA-06": [38.58, -121.49], "TX-22": [29.62, -95.64], "NJ-11": [40.86, -74.40],
@@ -802,7 +764,6 @@ out center;`;
       "NJ-05": [41.00, -74.15], "MD-08": [39.08, -77.15], "CA-32": [34.19, -118.53],
     };
 
-    // Radius in km — congressional districts are roughly 30-50km across
     const MAX_RADIUS_KM = 35;
 
     function haversineKm(lat1, lon1, lat2, lon2) {
@@ -813,7 +774,6 @@ out center;`;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // Assign each temple to nearest tracked district (if within radius)
     const results = temples.map(t => {
       let bestDist = Infinity, bestId = null;
       for (const [id, [cLat, cLng]] of Object.entries(DISTRICT_CENTERS)) {
@@ -827,7 +787,6 @@ out center;`;
       };
     });
 
-    // Aggregate per tracked district
     const counts = {};
     TRACKED_DISTRICTS.forEach(d => counts[d] = { hindu: 0, sikh: 0, total: 0, names: [] });
     const inDistrict = results.filter(r => r.district_id);
@@ -869,11 +828,9 @@ async function saveOverpassData() {
   showStatus('overpass-status', '⏳ Saving to database...', true);
 
   try {
-    // Clear old data
     await sb.from('osm_temples').delete().neq('id', 0);
     await sb.from('district_temple_counts').delete().neq('district_id', '');
 
-    // Insert raw temples (only those in tracked districts, in batches of 50)
     const rows = overpassResults.raw.filter(r => r.district_id).map(r => ({
       osm_id: r.osm_id, name: r.name, religion: r.religion,
       lat: r.lat, lng: r.lng, district_id: r.district_id,
@@ -883,7 +840,6 @@ async function saveOverpassData() {
       if (error) throw error;
     }
 
-    // Insert counts
     const countRows = Object.entries(overpassResults.counts).map(([id, c]) => ({
       district_id: id, hindu_temples: c.hindu, sikh_gurdwaras: c.sikh, total: c.total,
     }));
@@ -909,27 +865,44 @@ async function runCensus() {
   showStatus('census-status', '⏳ Querying Census ACS for language data...', true);
 
   try {
-    // Strategy: try multiple ACS vintages and variable combos
-    // C16001: Language Spoken at Home (Collapsed)
-    // 001E = Total pop 5+
-    // 015E = Other Indo-European languages (Hindi, Gujarati, Urdu, Punjabi, Bengali) - total speakers
-    // 017E = Other Indo-European - Speak English less than "very well" (LEP)
-    // 030E = Other Asian & PI languages (Telugu, Tamil, Kannada, Malayalam) - total speakers
-    // 032E = Other Asian & PI - Speak English less than "very well" (LEP)
+    const vintages = ['2022', '2021', '2023'];
+    let data = null;
+    let usedVintage = null;
 
-    // Call Census proxy Edge Function (handles vintage fallback server-side)
-    showStatus('census-status', '⏳ Fetching language data via proxy...', true);
-    const censusRes = await fetch(`${EDGE_FN_BASE}/census-proxy?action=language`);
-    if (!censusRes.ok) {
-      const err = await censusRes.json();
-      throw new Error(err.error || `Census proxy returned ${censusRes.status}`);
+    for (const yr of vintages) {
+      showStatus('census-status', `⏳ Trying ACS ${yr}...`, true);
+      try {
+        const vars = 'NAME,C16001_001E,C16001_015E,C16001_017E,C16001_030E,C16001_032E';
+        const url = `https://api.census.gov/data/${yr}/acs/acs5?get=${vars}&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          data = await res.json();
+          usedVintage = yr;
+          break;
+        }
+      } catch (e) { /* try next vintage */ }
     }
-    const censusPayload = await censusRes.json();
-    const data = censusPayload.data;
-    const usedVintage = censusPayload.vintage;
 
     if (!data) {
-      throw new Error('Census proxy returned no data');
+      showStatus('census-status', '⏳ Detailed language table unavailable at CD level. Trying simplified approach...', true);
+      const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B16004_001E,B16004_067E,B16004_068E,B16004_069E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        data = await res.json();
+        usedVintage = '2022-B16004';
+      }
+    }
+
+    if (!data) {
+      const url = `https://api.census.gov/data/2022/acs/acs5/profile?get=NAME,DP02_0113E,DP02_0114E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        data = await res.json();
+        usedVintage = '2022-DP02';
+      } else {
+        const errText = await res.text();
+        throw new Error(`All Census language tables returned errors. Last attempt: ${res.status} — ${errText.substring(0, 300)}`);
+      }
     }
 
     const headers = data[0];
@@ -947,7 +920,6 @@ async function runCensus() {
       let totalPop5plus = 0, totalSpeakers = 0, totalLEP = 0;
 
       if (usedVintage && !usedVintage.includes('-')) {
-        // C16001 approach (preferred)
         totalPop5plus = parseInt(row[headers.indexOf('C16001_001E')]) || 0;
         const indoEuroTotal = parseInt(row[headers.indexOf('C16001_015E')]) || 0;
         const indoEuroLEP = parseInt(row[headers.indexOf('C16001_017E')]) || 0;
@@ -960,10 +932,9 @@ async function runCensus() {
         totalSpeakers = parseInt(row[headers.indexOf('B16004_067E')]) || 0;
         totalLEP = parseInt(row[headers.indexOf('B16004_068E')]) || 0;
       } else {
-        // DP02 fallback - less granular
         totalPop5plus = parseInt(row[headers.indexOf('DP02_0113E')]) || 0;
         totalSpeakers = parseInt(row[headers.indexOf('DP02_0114E')]) || 0;
-        totalLEP = 0; // not available in this table
+        totalLEP = 0;
       }
 
       censusResults.push({
@@ -1029,13 +1000,10 @@ async function runVerify() {
   showStatus('verify-status', '⏳ Pulling Asian Indian population from Census...', true);
 
   try {
-    // Call Census proxy Edge Function
-    const verifyRes = await fetch(`${EDGE_FN_BASE}/census-proxy?action=verify`);
-    if (!verifyRes.ok) {
-      const err = await verifyRes.json();
-      throw new Error(err.error || `Census proxy returned ${verifyRes.status}`);
-    }
-    const { data } = await verifyRes.json();
+    const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B02015_002E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Census API returned ${res.status}`);
+    const data = await res.json();
     const headers = data[0];
     const rows = data.slice(1);
 
@@ -1073,59 +1041,7 @@ async function runVerify() {
 
 
 // ═══════════════════════════════════════════════════════════
-// TABLE SUMMARY
-// ═══════════════════════════════════════════════════════════
-
-async function loadTableSummary() {
-  const tables = ['districts','senate_races','fbi_trend_data','temple_incidents','discourse_events','narrative_items','pres_vote_trend','gender_age_vote','party_id','top_issues','precinct_swings','osm_temples','district_temple_counts','census_language','h1b_perm_by_district','h1b_state_summary','tracked_bills','youtube_tracker','economic_contribution'];
-  let html = '<table class="preview-table"><tr><th>Table</th><th>Rows</th></tr>';
-  for (const t of tables) {
-    const { count } = await sb.from(t).select('*', { count: 'exact', head: true });
-    html += `<tr><td class="mono">${t}</td><td>${count ?? '—'}</td></tr>`;
-  }
-  html += '</table>';
-  $('table-summary').innerHTML = html;
-}
-
-
-// ═══════════════════════════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════════════════════════
-
-function $(id) { return document.getElementById(id); }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function showStatus(elId, msg, success) {
-  const el = $(elId);
-  el.innerHTML = `<div class="status ${success ? 'status-success' : 'status-error'}">${msg}</div>`;
-}
-
-function switchTab(tab) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  $(`tab-${tab}`).classList.add('active');
-  event.target.classList.add('active');
-}
-
-function switchSubTab(id) {
-  document.querySelectorAll('.sub-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active'));
-  $(id).classList.remove('hidden');
-  event.target.classList.add('active');
-}
-
-function switchBillView(view) {
-  $('bill-search-view').classList.toggle('hidden', view !== 'search');
-  $('bill-tracked-view').classList.toggle('hidden', view !== 'tracked');
-  document.querySelectorAll('#tab-loaders .card:last-of-type .sub-tab').forEach(el => el.classList.remove('active'));
-  event.target.classList.add('active');
-  if (view === 'tracked') loadTrackedBills();
-}
-
-
-
-// ═══════════════════════════════════════════════════════════
-// DATA LOADER: CONGRESS.GOV BILL TRACKER
+// CONGRESS.GOV BILL TRACKER
 // ═══════════════════════════════════════════════════════════
 
 let billSearchResults = [];
@@ -1137,12 +1053,11 @@ async function searchBills() {
   showStatus('bill-status', `⏳ Searching Congress.gov for "${query}"...`, true);
 
   try {
-    // Call Congress proxy Edge Function
-    const url = `${EDGE_FN_BASE}/congress-proxy?q=${encodeURIComponent(query)}&limit=20`;
+    const url = `https://api.congress.gov/v3/bill?query=${encodeURIComponent(query)}&limit=20&sort=updateDate+desc&api_key=${CONGRESS_KEY}`;
     const res = await fetch(url);
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || `Congress proxy returned ${res.status}`);
+      const text = await res.text();
+      throw new Error(`Congress API returned ${res.status}: ${text.substring(0, 200)}`);
     }
     const data = await res.json();
     const bills = data.bills || [];
@@ -1162,12 +1077,10 @@ async function searchBills() {
       const congress = bill.congress || '';
       const type = bill.type || '';
       const number = bill.number || '';
-      const billId = `${type.toLowerCase()}${number}-${congress}`;
       const title = bill.title || 'No title';
       const latestAction = bill.latestAction?.text || 'No action recorded';
       const latestDate = bill.latestAction?.actionDate || '';
       const policyArea = bill.policyArea?.name || '';
-      const url = bill.url || '';
 
       html += `<div class="card" style="border-color:#E8E3D8;">
         <div class="card-body" style="padding:12px 16px;">
@@ -1209,7 +1122,6 @@ async function trackBill(index) {
   const number = bill.number || 0;
   const billId = `${type}${number}-${congress}`;
 
-  // Determine relevance tag from title keywords
   const titleLower = (bill.title || '').toLowerCase();
   let relevanceTag = 'other';
   if (titleLower.includes('h-1b') || titleLower.includes('h1b')) relevanceTag = 'h1b';
@@ -1219,7 +1131,6 @@ async function trackBill(index) {
   else if (titleLower.includes('immigration') || titleLower.includes('visa')) relevanceTag = 'immigration';
   else if (titleLower.includes('sikh') || titleLower.includes('hindu')) relevanceTag = 'civil_rights';
 
-  // Determine status
   const action = (bill.latestAction?.text || '').toLowerCase();
   let status = 'introduced';
   if (action.includes('became public law') || action.includes('signed by president')) status = 'enacted';
@@ -1246,12 +1157,10 @@ async function trackBill(index) {
   if (error) {
     alert(`Error tracking bill: ${error.message}`);
   } else {
-    // Update button to show tracked
     event.target.textContent = '✓ Tracked';
     event.target.disabled = true;
     event.target.classList.remove('btn-saffron');
     event.target.classList.add('btn-outline');
-    // Update count
     const { count } = await sb.from('tracked_bills').select('*', { count: 'exact', head: true });
     $('tracked-count').textContent = count || 0;
   }
@@ -1310,229 +1219,60 @@ async function untrackBill(billId) {
   loadTrackedBills();
 }
 
-// Load tracked count on admin init
 async function loadTrackedCount() {
   const { count } = await sb.from('tracked_bills').select('*', { count: 'exact', head: true });
   $('tracked-count').textContent = count || 0;
-  const { count: ytCount } = await sb.from('youtube_tracker').select('*', { count: 'exact', head: true });
-  $('yt-tracked-count').textContent = ytCount || 0;
 }
 
 
 // ═══════════════════════════════════════════════════════════
-// DATA LOADER: YOUTUBE
+// TABLE SUMMARY
 // ═══════════════════════════════════════════════════════════
 
-let ytSearchResults = [];
+async function loadTableSummary() {
+  const tables = ['districts','senate_races','fbi_trend_data','temple_incidents','discourse_events','narrative_items','pres_vote_trend','gender_age_vote','party_id','top_issues','precinct_swings','osm_temples','district_temple_counts','census_language','h1b_perm_by_district','h1b_state_summary','tracked_bills','economic_contribution'];
+  let html = '<table class="preview-table"><tr><th>Table</th><th>Rows</th></tr>';
+  for (const t of tables) {
+    const { count } = await sb.from(t).select('*', { count: 'exact', head: true });
+    html += `<tr><td class="mono">${t}</td><td>${count ?? '—'}</td></tr>`;
+  }
+  html += '</table>';
+  $('table-summary').innerHTML = html;
+}
 
-function switchYTView(view) {
-  $('yt-search-view').classList.toggle('hidden', view !== 'search');
-  $('yt-tracked-view').classList.toggle('hidden', view !== 'tracked');
-  // Update active sub-tab styling
-  const tabs = $('yt-search-view').closest('.card-body').querySelectorAll('.sub-tab');
-  tabs.forEach(t => t.classList.remove('active'));
+
+// ═══════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════
+
+function $(id) { return document.getElementById(id); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showStatus(elId, msg, success) {
+  const el = $(elId);
+  el.innerHTML = `<div class="status ${success ? 'status-success' : 'status-error'}">${msg}</div>`;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  $(`tab-${tab}`).classList.add('active');
   event.target.classList.add('active');
-  if (view === 'tracked') loadTrackedVideos();
 }
 
-async function searchYouTube() {
-  const query = $('yt-query').value.trim();
-  const order = $('yt-order').value;
-  if (!query) { showStatus('yt-status', 'Enter a search term.', false); return; }
-
-  showStatus('yt-status', `⏳ Searching YouTube for "${query}"...`, true);
-
-  try {
-    // Call Edge Function (API key stays server-side)
-    const proxyUrl = `${EDGE_FN_BASE}/youtube-proxy?action=search&q=${encodeURIComponent(query)}&order=${order}&maxResults=15`;
-    const res = await fetch(proxyUrl);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || `Proxy returned ${res.status}`);
-    }
-    const { items, stats: statsMap } = await res.json();
-
-    if (!items?.length) {
-      showStatus('yt-status', `No results for "${query}".`, true);
-      $('yt-preview').innerHTML = '';
-      return;
-    }
-
-    ytSearchResults = items.map(item => {
-      const s = statsMap[item.id.videoId] || {};
-      return {
-        video_id: item.id.videoId,
-        title: item.snippet.title,
-        channel_name: item.snippet.channelTitle,
-        channel_id: item.snippet.channelId,
-        published_at: item.snippet.publishedAt,
-        thumbnail_url: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
-        view_count: parseInt(s.stats?.viewCount) || 0,
-        like_count: parseInt(s.stats?.likeCount) || 0,
-        comment_count: parseInt(s.stats?.commentCount) || 0,
-        duration: s.duration || '',
-        url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-      };
-    });
-
-    // Render
-    let html = `<p class="text-sm mb-8">${ytSearchResults.length} results. Click Track to add to your dashboard feed.</p>`;
-    html += '<div style="display:grid; gap:10px;">';
-
-    ytSearchResults.forEach((v, i) => {
-      const views = v.view_count >= 1000000 ? (v.view_count / 1000000).toFixed(1) + 'M' : v.view_count >= 1000 ? (v.view_count / 1000).toFixed(0) + 'K' : v.view_count;
-      const date = v.published_at ? new Date(v.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-
-      html += `<div class="card" style="border-color:#E8E3D8;">
-        <div class="card-body" style="padding:12px 16px;">
-          <div class="flex gap-12" style="flex-wrap:wrap;">
-            <img src="${v.thumbnail_url}" alt="" style="width:160px; height:90px; object-fit:cover; border-radius:6px; flex-shrink:0;" />
-            <div style="flex:1; min-width:200px;">
-              <div style="font-size:13px; font-weight:600; line-height:1.4; margin-bottom:4px;">${v.title}</div>
-              <div class="text-muted" style="font-size:11px; margin-bottom:6px;">
-                ${v.channel_name} · ${date} · <strong>${views}</strong> views · ${v.like_count.toLocaleString()} likes
-              </div>
-              <div class="flex gap-8">
-                <select id="yt-tag-${i}" style="width:auto; padding:4px 8px; font-size:11px;">
-                  <option value="policy">Policy</option>
-                  <option value="h1b">H-1B / Immigration</option>
-                  <option value="elections">Elections</option>
-                  <option value="hate_crimes">Hate Crimes</option>
-                  <option value="culture">Culture</option>
-                  <option value="diaspora">Diaspora</option>
-                  <option value="green_card">Green Card</option>
-                </select>
-                <button class="btn btn-sm btn-saffron" onclick="trackVideo(${i})">Track</button>
-                <a href="${v.url}" target="_blank" class="btn btn-sm btn-outline">Watch ↗</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>`;
-    });
-    html += '</div>';
-
-    $('yt-preview').innerHTML = html;
-    showStatus('yt-status', `✓ Found ${ytSearchResults.length} videos.`, true);
-
-  } catch (err) {
-    showStatus('yt-status', `Error: ${err.message}`, false);
-  }
+function switchSubTab(id) {
+  document.querySelectorAll('.sub-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active'));
+  $(id).classList.remove('hidden');
+  event.target.classList.add('active');
 }
 
-async function trackVideo(index) {
-  const v = ytSearchResults[index];
-  if (!v) return;
-
-  const tag = $(`yt-tag-${index}`)?.value || 'policy';
-  const row = {
-    video_id: v.video_id,
-    title: v.title,
-    channel_name: v.channel_name,
-    channel_id: v.channel_id,
-    published_at: v.published_at,
-    view_count: v.view_count,
-    like_count: v.like_count,
-    comment_count: v.comment_count,
-    duration: v.duration,
-    topic_tag: tag,
-    thumbnail_url: v.thumbnail_url,
-    url: v.url,
-    stats_updated_at: new Date().toISOString(),
-  };
-
-  const { error } = await sb.from('youtube_tracker').upsert(row, { onConflict: 'video_id' });
-  if (error) {
-    alert(`Error: ${error.message}`);
-  } else {
-    event.target.textContent = '✓ Tracked';
-    event.target.disabled = true;
-    event.target.classList.remove('btn-saffron');
-    event.target.classList.add('btn-outline');
-    const { count } = await sb.from('youtube_tracker').select('*', { count: 'exact', head: true });
-    $('yt-tracked-count').textContent = count || 0;
-  }
-}
-
-async function loadTrackedVideos() {
-  const { data, error } = await sb.from('youtube_tracker').select('*').order('view_count', { ascending: false });
-  if (error) { $('yt-tracked-list').innerHTML = `<div class="status status-error">Error: ${error.message}</div>`; return; }
-  if (!data?.length) { $('yt-tracked-list').innerHTML = '<p class="text-muted">No tracked videos yet.</p>'; return; }
-
-  $('yt-tracked-count').textContent = data.length;
-
-  const tagColors = {
-    h1b: { bg: '#DBEAFE', color: '#1E40AF' },
-    green_card: { bg: '#ECFDF5', color: '#047857' },
-    hate_crimes: { bg: '#FEF2F2', color: '#991B1B' },
-    elections: { bg: '#EDE9FE', color: '#6D28D9' },
-    policy: { bg: '#FFFBEB', color: '#92400E' },
-    culture: { bg: '#FEF3C7', color: '#92400E' },
-    diaspora: { bg: '#F0FDF4', color: '#166534' },
-  };
-
-  let html = '<div style="display:grid; gap:10px;">';
-  data.forEach(v => {
-    const tc = tagColors[v.topic_tag] || { bg: '#F5F2EB', color: '#4A5568' };
-    const views = v.view_count >= 1000000 ? (v.view_count / 1000000).toFixed(1) + 'M' : v.view_count >= 1000 ? (v.view_count / 1000).toFixed(0) + 'K' : v.view_count;
-    const date = v.published_at ? new Date(v.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-
-    html += `<div class="card" style="border-color:#E8E3D8;">
-      <div class="card-body" style="padding:12px 16px;">
-        <div class="flex gap-12" style="flex-wrap:wrap;">
-          ${v.thumbnail_url ? `<img src="${v.thumbnail_url}" alt="" style="width:120px; height:68px; object-fit:cover; border-radius:4px; flex-shrink:0;" />` : ''}
-          <div style="flex:1; min-width:200px;">
-            <div class="flex gap-8 items-center mb-4">
-              <span class="badge" style="background:${tc.bg}; color:${tc.color};">${v.topic_tag?.replace('_',' ')}</span>
-              <span class="text-muted mono" style="font-size:10px;">${views} views</span>
-            </div>
-            <div style="font-size:13px; font-weight:600; line-height:1.4; margin-bottom:4px;">${v.title}</div>
-            <div class="text-muted" style="font-size:11px;">${v.channel_name} · ${date}</div>
-          </div>
-          <div class="flex gap-8" style="align-self:center;">
-            <a href="${v.url}" target="_blank" class="btn btn-sm btn-outline">Watch ↗</a>
-            <button class="btn btn-sm btn-danger" onclick="untrackVideo('${v.video_id}')">Remove</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  });
-  html += '</div>';
-  $('yt-tracked-list').innerHTML = html;
-}
-
-async function untrackVideo(videoId) {
-  if (!confirm('Remove this video?')) return;
-  await sb.from('youtube_tracker').delete().eq('video_id', videoId);
-  loadTrackedVideos();
-}
-
-async function refreshYTStats() {
-  const { data } = await sb.from('youtube_tracker').select('video_id');
-  if (!data?.length) { alert('No tracked videos to refresh.'); return; }
-
-  showStatus('yt-status', '⏳ Refreshing view counts...', true);
-
-  // Batch in groups of 50 via Edge Function
-  for (let i = 0; i < data.length; i += 50) {
-    const batch = data.slice(i, i + 50);
-    const ids = batch.map(v => v.video_id).join(',');
-    const url = `${EDGE_FN_BASE}/youtube-proxy?action=stats&ids=${ids}`;
-    const res = await fetch(url);
-    if (!res.ok) continue;
-    const result = await res.json();
-    for (const item of (result.items || [])) {
-      await sb.from('youtube_tracker').update({
-        view_count: parseInt(item.statistics.viewCount) || 0,
-        like_count: parseInt(item.statistics.likeCount) || 0,
-        comment_count: parseInt(item.statistics.commentCount) || 0,
-        stats_updated_at: new Date().toISOString(),
-      }).eq('video_id', item.id);
-    }
-  }
-
-  showStatus('yt-status', `✓ Updated stats for ${data.length} videos.`, true);
-  loadTrackedVideos();
+function switchBillView(view) {
+  $('bill-search-view').classList.toggle('hidden', view !== 'search');
+  $('bill-tracked-view').classList.toggle('hidden', view !== 'tracked');
+  document.querySelectorAll('#tab-loaders .card:last-of-type .sub-tab').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  if (view === 'tracked') loadTrackedBills();
 }
 
 
