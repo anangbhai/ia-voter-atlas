@@ -9,7 +9,7 @@ const CONTACT_EMAIL = "anang+voteratlas@gmail.com";
 // ═══════════════════════════════════════════════════════════
 
 const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
-const SUPABASE_ANON = "REDACTED";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YXNnZWVldXRiYmNhaG5ndWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjk1NTksImV4cCI6MjA4Njg0NTU1OX0.JxmwK9sc3PA9f5ws96TxHiqGKJaHBSJ4HI_X9sUtJ88";
 
 async function supaFetch(table) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
