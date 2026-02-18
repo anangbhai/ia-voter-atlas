@@ -162,6 +162,7 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('edit')">Quick Edit</button>
       <button class="tab-btn" onclick="switchTab('loaders')">Data Loaders</button>
+      <button class="tab-btn" onclick="switchTab('discourse')">Discourse Loader</button>
       <button class="tab-btn" onclick="switchTab('tables')">Tables</button>
     </div>
 
@@ -461,6 +462,193 @@
           </div>
           <div id="bill-tracked-view" class="hidden">
             <div id="tracked-bills-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DISCOURSE LOADER TAB ═══ -->
+    <div id="tab-discourse" class="tab-content">
+
+      <!-- Config card -->
+      <div class="card mb-24">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="display" style="font-size:16px; color:#1E3A5F;">📡 Media & Policy Signal Loader</h3>
+            <span class="badge badge-saffron">GDELT + GovInfo</span>
+          </div>
+          <p class="text-muted mb-16">Pulls framing and tone data from GDELT's article archive (DOC 2.0) and TV broadcast archive (TV 2.0), plus floor speech text from the Congressional Record via GovInfo. No key needed for GDELT. GovInfo key is free at <a href="https://api.govinfo.gov/docs/" target="_blank" style="color:#D97706;">api.govinfo.gov/docs</a>.</p>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
+            <div>
+              <label class="form-label">Narrative Query Pack</label>
+              <select id="disc-queryPack" onchange="discOnPackChange()" style="width:100%; padding:8px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:13px;">
+                <option value="h1b">H-1B Visa / Tech Workforce</option>
+                <option value="iamerican">Indian Americans (political)</option>
+                <option value="southasian">South Asian Hate / Discrimination</option>
+                <option value="indiarelations">US-India Relations</option>
+                <option value="greencard">Green Card Backlog</option>
+                <option value="custom">Custom Query…</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Lookback Window</label>
+              <select id="disc-timespan" style="width:100%; padding:8px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:13px;">
+                <option value="1months">1 Month</option>
+                <option value="3months" selected>3 Months</option>
+                <option value="6months">6 Months</option>
+                <option value="1year">1 Year</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Max Articles (GDELT DOC)</label>
+              <select id="disc-maxRecords" style="width:100%; padding:8px 10px; border:1px solid #E5E7EB; border-radius:6px; font-size:13px;">
+                <option value="50">50 articles</option>
+                <option value="100">100 articles</option>
+                <option value="250" selected>250 articles</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="disc-customRow" style="display:none; margin-bottom:16px;">
+            <label class="form-label">Custom Search Query</label>
+            <input type="text" id="disc-customQuery" placeholder='"Indian Americans" AND H-1B OR "tech workers"' style="width:100%;" />
+          </div>
+
+          <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:14px 16px; margin-bottom:16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+              <label class="form-label">GovInfo API Key <span style="font-weight:400; color:#9CA3AF;">(optional — skip for GDELT only)</span></label>
+              <input type="password" id="disc-govKey" placeholder="Paste GovInfo key here" style="width:100%;" />
+            </div>
+            <div>
+              <label class="form-label">Note</label>
+              <p style="font-size:12px; color:#92400E; margin-top:6px; line-height:1.5;">Your Supabase credentials are already configured above. GDELT requires no key — click "GDELT Only" to get data flowing immediately.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-8">
+            <button class="btn btn-saffron" id="disc-runBtn" onclick="discRunAll()">▶ Fetch All Sources</button>
+            <button class="btn btn-outline" onclick="discRunGdeltOnly()">GDELT Only (no key needed)</button>
+            <button class="btn btn-outline" onclick="discClear()">Clear</button>
+          </div>
+          <div id="disc-status" class="mt-12"></div>
+        </div>
+      </div>
+
+      <!-- Results: 3 columns -->
+      <div id="disc-resultsGrid" style="display:none; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px;">
+
+        <!-- GDELT DOC -->
+        <div class="card">
+          <div class="card-body">
+            <div class="flex justify-between items-center mb-8">
+              <h3 class="display" style="font-size:14px; color:#1E3A5F;">📰 GDELT Articles</h3>
+              <span id="disc-gdeltCount" class="badge badge-saffron">—</span>
+            </div>
+            <div style="display:flex; gap:0; border:1px solid #E5E7EB; border-radius:8px; overflow:hidden; margin-bottom:12px;">
+              <div style="flex:1; padding:10px; text-align:center; border-right:1px solid #E5E7EB;">
+                <div id="disc-avgTone" style="font-family:monospace; font-size:18px; font-weight:700; color:#1E3A5F;">—</div>
+                <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em;">Avg Tone</div>
+              </div>
+              <div style="flex:1; padding:10px; text-align:center; border-right:1px solid #E5E7EB;">
+                <div id="disc-posCount" style="font-family:monospace; font-size:18px; font-weight:700; color:#059669;">—</div>
+                <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em;">Positive</div>
+              </div>
+              <div style="flex:1; padding:10px; text-align:center;">
+                <div id="disc-negCount" style="font-family:monospace; font-size:18px; font-weight:700; color:#DC2626;">—</div>
+                <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em;">Negative</div>
+              </div>
+            </div>
+            <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Top Domains</div>
+            <div id="disc-domains" style="font-size:12px; color:#6B7280;">Run fetch to load</div>
+            <div id="disc-articles" style="margin-top:12px; max-height:280px; overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- GDELT TV -->
+        <div class="card">
+          <div class="card-body">
+            <div class="flex justify-between items-center mb-8">
+              <h3 class="display" style="font-size:14px; color:#1E3A5F;">📺 GDELT TV Broadcasts</h3>
+              <span id="disc-tvCount" class="badge" style="background:#DCFCE7; color:#166534;">—</span>
+            </div>
+            <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Station Breakdown</div>
+            <div id="disc-stations" style="font-size:12px; color:#6B7280; margin-bottom:12px;">Run fetch to load</div>
+            <div id="disc-clips" style="max-height:320px; overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- GovInfo -->
+        <div class="card">
+          <div class="card-body">
+            <div class="flex justify-between items-center mb-8">
+              <h3 class="display" style="font-size:14px; color:#1E3A5F;">🏛️ Congressional Record</h3>
+              <span id="disc-govCount" class="badge" style="background:#FEF3C7; color:#92400E;">—</span>
+            </div>
+            <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Floor Speech Mentions</div>
+            <div id="disc-speeches" style="max-height:360px; overflow-y:auto; font-size:12px; color:#6B7280;">GovInfo key required</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Write to Supabase panel -->
+      <div id="disc-writePanel" style="display:none;" class="card mb-24">
+        <div class="card-body">
+          <h3 class="display mb-4" style="font-size:15px; color:#1E3A5F;">Write to Supabase</h3>
+          <p class="text-muted mb-16" style="font-family:monospace; font-size:11px;">Writes to <code>discourse_items</code> (individual records) and <code>narrative_media_signals</code> (weekly rollup). Duplicates are ignored automatically.</p>
+          <div id="disc-writeSummary" style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;"></div>
+          <div class="flex gap-8">
+            <button class="btn btn-primary" id="disc-writeBtn" onclick="discWriteToSupabase()">✓ Confirm &amp; Write to Supabase</button>
+            <button class="btn btn-outline" onclick="document.getElementById('disc-writePanel').style.display='none'">Cancel</button>
+          </div>
+          <div id="disc-writeStatus" class="mt-12"></div>
+        </div>
+      </div>
+
+      <!-- SQL Setup -->
+      <div class="card">
+        <div class="card-body">
+          <div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="discToggleSQL()">
+            <span style="font-size:13px; font-weight:700; color:#1E3A5F;">🗄️ Supabase SQL Setup</span>
+            <span style="font-size:11px; color:#9CA3AF; font-family:monospace;">Run once before first write</span>
+            <span style="margin-left:auto; font-size:12px; color:#9CA3AF;" id="disc-sqlIcon">▼ Show</span>
+          </div>
+          <div id="disc-sqlBlock" style="display:none; margin-top:16px;">
+            <pre style="background:#F3F4F6; border-radius:7px; padding:14px; font-size:10.5px; line-height:1.8; overflow-x:auto; color:#374151;">CREATE TABLE IF NOT EXISTS discourse_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  source TEXT NOT NULL,      -- 'gdelt_doc' | 'gdelt_tv' | 'govinfo'
+  type TEXT NOT NULL,        -- 'article' | 'broadcast' | 'floor_speech'
+  title TEXT,
+  url TEXT,
+  published_at TIMESTAMPTZ,
+  tone_score NUMERIC(6,3),   -- GDELT tone: -10 to +10
+  narrative_key TEXT,        -- 'h1b' | 'iamerican' | 'southasian' etc.
+  station TEXT,              -- TV station (broadcast only)
+  domain TEXT,               -- publisher domain (articles only)
+  snippet TEXT,              -- first ~300 chars
+  fetched_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(url)                -- prevents duplicate runs
+);
+
+CREATE TABLE IF NOT EXISTS narrative_media_signals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  narrative_key TEXT NOT NULL,
+  week_start DATE NOT NULL,
+  article_count INTEGER,
+  avg_tone NUMERIC(6,3),
+  pct_positive NUMERIC(5,2),
+  top_domains JSONB,
+  tv_station_counts JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(narrative_key, week_start)
+);
+
+ALTER TABLE discourse_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_media_signals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read" ON discourse_items FOR SELECT USING (true);
+CREATE POLICY "Service write" ON discourse_items FOR INSERT WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "Public read" ON narrative_media_signals FOR SELECT USING (true);
+CREATE POLICY "Service write" ON narrative_media_signals FOR INSERT WITH CHECK (auth.role() = 'service_role');</pre>
           </div>
         </div>
       </div>
@@ -1274,6 +1462,327 @@ function switchBillView(view) {
   event.target.classList.add('active');
   if (view === 'tracked') loadTrackedBills();
 }
+
+// ═══════════════════════════════════════════════
+// DISCOURSE LOADER — GDELT + GOVINFO
+// ═══════════════════════════════════════════════
+
+const DISC_QUERY_PACKS = {
+  h1b:           { gdelt: '"H-1B" OR "H1B" OR "tech worker visa"',               tv: '"H-1B" OR "H1B visa"',                     gov: 'H-1B visa technology workers' },
+  iamerican:     { gdelt: '"Indian Americans" OR "Indian American community"',    tv: '"Indian Americans" OR "Indian American voters"', gov: 'Indian Americans community' },
+  southasian:    { gdelt: '"South Asian" hate crime OR discrimination',           tv: '"South Asian" hate OR discrimination',      gov: 'South Asian hate crimes discrimination' },
+  indiarelations:{ gdelt: '"United States" India relations OR "US-India"',        tv: '"US-India" OR "United States India"',       gov: 'United States India bilateral relations' },
+  greencard:     { gdelt: '"green card" backlog OR "employment-based" visa India', tv: '"green card" backlog India',               gov: 'green card employment based immigration backlog India' },
+};
+
+let discData = { articles: [], clips: [], speeches: [] };
+let discNarrativeKey = 'h1b';
+
+function discOnPackChange() {
+  const v = $('disc-queryPack').value;
+  $('disc-customRow').style.display = v === 'custom' ? 'block' : 'none';
+}
+
+function discSetStatus(msg, ok) {
+  showStatus('disc-status', msg, ok !== false && ok !== undefined ? ok : false);
+  if (ok === 'loading') {
+    $('disc-status').innerHTML = `<div class="status status-success" style="background:#EFF6FF; color:#1D4ED8; border-color:#BFDBFE;">${msg}</div>`;
+  }
+}
+
+function discExtractDomain(url) {
+  try { return new URL(url).hostname.replace('www.',''); } catch { return 'unknown'; }
+}
+function discParseDate(d) {
+  if (!d || d.length < 8) return null;
+  return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}T${d.slice(8,10)||'00'}:${d.slice(10,12)||'00'}:00Z`;
+}
+function discAvgTone(arts) {
+  if (!arts.length) return 0;
+  return arts.reduce((s,a)=>s+a.tone_score,0)/arts.length;
+}
+function discDomainCounts(arts) {
+  const c={};
+  arts.forEach(a=>{c[a.domain]=(c[a.domain]||0)+1;});
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([d,n])=>({domain:d,count:n}));
+}
+function discStationCounts(clips) {
+  const c={};
+  clips.forEach(cl=>{c[cl.station]=(c[cl.station]||0)+1;});
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([s,n])=>({station:s,count:n}));
+}
+function discFmtDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch { return iso; }
+}
+function discEsc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function discFetchGdeltDoc(query, timespan, maxRecords) {
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=artlist&maxrecords=${maxRecords}&timespan=${timespan}&sort=hybridrel&format=json`;
+  let res;
+  try { res = await fetch(url); }
+  catch { res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
+  if (!res.ok) throw new Error(`GDELT DOC HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.articles||[]).map(a=>({
+    title: a.title||'(no title)', url: a.url||'',
+    domain: a.domain||discExtractDomain(a.url),
+    published_at: a.seendate ? discParseDate(a.seendate) : null,
+    tone_score: parseFloat(a.tone)||0,
+  }));
+}
+
+async function discFetchGdeltTv(query, timespan) {
+  const url = `https://api.gdeltproject.org/api/v2/tv/tv?query=${encodeURIComponent(query)}&mode=clipgallery&maxclips=20&timespan=${timespan}&datacomb=or&format=json`;
+  let res;
+  try { res = await fetch(url); }
+  catch { res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`); }
+  if (!res.ok) throw new Error(`GDELT TV HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.clips||[]).map(c=>({
+    station: c.station||'Unknown', show: c.show||'',
+    date: c.date||'', snippet: c.snippet||'', url: c.previewUrl||'',
+  }));
+}
+
+async function discFetchGovInfo(query, apiKey) {
+  if (!apiKey) return [];
+  const url = `https://api.govinfo.gov/search?query=${encodeURIComponent(query)}&pageSize=20&offsetMark=*&collections=CREC&api_key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { headers: { 'X-Api-Key': apiKey } });
+  if (!res.ok) throw new Error(`GovInfo HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.results||[]).map(r=>({
+    title: r.title||r.packageId||'(no title)',
+    url: r.detailsLink||'',
+    published_at: r.dateIssued||null,
+    snippet: r.context||r.title||'',
+    chamber: r.granuleClass||'',
+  }));
+}
+
+function discRenderGdelt(arts) {
+  $('disc-gdeltCount').textContent = arts.length||'0';
+  if (!arts.length) { $('disc-domains').innerHTML='<span style="color:#9CA3AF;">No results</span>'; $('disc-articles').innerHTML=''; return; }
+  const avg = discAvgTone(arts);
+  const pos = arts.filter(a=>a.tone_score>1).length;
+  const neg = arts.filter(a=>a.tone_score<-1).length;
+  $('disc-avgTone').textContent = avg.toFixed(2);
+  $('disc-avgTone').style.color = avg>0?'#059669':avg<0?'#DC2626':'#1E3A5F';
+  $('disc-posCount').textContent = pos;
+  $('disc-negCount').textContent = neg;
+
+  const domains = discDomainCounts(arts);
+  const maxD = domains[0]?.count||1;
+  $('disc-domains').innerHTML = domains.map((d,i)=>`
+    <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #F3F4F6; font-size:11px;">
+      <span style="color:#9CA3AF; font-family:monospace; width:14px;">${i+1}</span>
+      <span style="flex:1; color:#374151;">${discEsc(d.domain)}</span>
+      <div style="width:60px; height:5px; background:#E5E7EB; border-radius:3px; overflow:hidden;">
+        <div style="width:${Math.round(d.count/maxD*100)}%; height:100%; background:#D97706; border-radius:3px;"></div>
+      </div>
+      <span style="font-family:monospace; color:#6B7280; width:20px; text-align:right;">${d.count}</span>
+    </div>`).join('');
+
+  const sorted = [...arts].sort((a,b)=>(b.published_at||'')>(a.published_at||'')?1:-1).slice(0,12);
+  $('disc-articles').innerHTML = sorted.map(a=>{
+    const t = a.tone_score;
+    const toneColor = t>1?'#059669':t<-1?'#DC2626':'#9CA3AF';
+    const toneBg   = t>1?'#DCFCE7':t<-1?'#FEE2E2':'#F3F4F6';
+    return `<div style="padding:9px 0; border-bottom:1px solid #F3F4F6;">
+      <div style="font-size:12px; font-weight:600; color:#1E3A5F; margin-bottom:3px; line-height:1.4;">${discEsc(a.title)}</div>
+      <div style="display:flex; gap:8px; font-size:10px; color:#9CA3AF; font-family:monospace; align-items:center;">
+        <span>${discEsc(a.domain)}</span>
+        <span>${discFmtDate(a.published_at)}</span>
+        <span style="padding:1px 6px; border-radius:3px; background:${toneBg}; color:${toneColor};">${t>0?'+':''}${t.toFixed(1)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function discRenderTV(clips) {
+  $('disc-tvCount').textContent = clips.length||'0';
+  if (!clips.length) { $('disc-stations').innerHTML='<span style="color:#9CA3AF;">No clips found</span>'; $('disc-clips').innerHTML=''; return; }
+  const stations = discStationCounts(clips);
+  const maxS = stations[0]?.count||1;
+  $('disc-stations').innerHTML = stations.map((s,i)=>`
+    <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #F3F4F6; font-size:11px;">
+      <span style="color:#9CA3AF; font-family:monospace; width:14px;">${i+1}</span>
+      <span style="flex:1; color:#374151; font-weight:600;">${discEsc(s.station)}</span>
+      <div style="width:60px; height:5px; background:#E5E7EB; border-radius:3px; overflow:hidden;">
+        <div style="width:${Math.round(s.count/maxS*100)}%; height:100%; background:#059669; border-radius:3px;"></div>
+      </div>
+      <span style="font-family:monospace; color:#6B7280; width:20px; text-align:right;">${s.count}</span>
+    </div>`).join('');
+  $('disc-clips').innerHTML = clips.slice(0,8).map(c=>`
+    <div style="padding:10px 0; border-bottom:1px solid #F3F4F6;">
+      <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#059669; margin-bottom:3px;">${discEsc(c.station)}${c.show?' · '+discEsc(c.show):''}</div>
+      <div style="font-size:12px; color:#374151; line-height:1.5; margin-bottom:3px;">${discEsc(c.snippet||'(no preview)')}</div>
+      <div style="font-size:10px; color:#9CA3AF; font-family:monospace;">${discFmtDate(c.date)}</div>
+    </div>`).join('');
+}
+
+function discRenderGovInfo(speeches) {
+  $('disc-govCount').textContent = speeches.length||'0';
+  if (!speeches.length) {
+    $('disc-speeches').innerHTML = `<span style="color:#9CA3AF;">${$('disc-govKey').value?'No floor speeches found':'Enter a GovInfo key above'}</span>`;
+    return;
+  }
+  $('disc-speeches').innerHTML = speeches.map(s=>`
+    <div style="padding:10px 0; border-bottom:1px solid #F3F4F6;">
+      <div style="font-size:12px; font-weight:600; color:#1E3A5F; margin-bottom:4px;">${discEsc(s.title)}</div>
+      ${s.snippet?`<div style="font-size:11px; color:#6B7280; border-left:2px solid #D97706; padding-left:8px; font-style:italic; margin-bottom:4px; line-height:1.5;">${discEsc(s.snippet.slice(0,260))}…</div>`:''}
+      <div style="font-size:10px; color:#9CA3AF; font-family:monospace;">${discFmtDate(s.published_at)}${s.chamber?' · '+discEsc(s.chamber):''}</div>
+    </div>`).join('');
+}
+
+async function discRunAll() { await discFetch(true); }
+async function discRunGdeltOnly() { await discFetch(false); }
+
+async function discFetch(includeGov) {
+  const packKey   = $('disc-queryPack').value;
+  discNarrativeKey = packKey === 'custom' ? 'custom' : packKey;
+  const pack      = DISC_QUERY_PACKS[packKey];
+  const timespan  = $('disc-timespan').value;
+  const maxRec    = $('disc-maxRecords').value;
+  const govKey    = $('disc-govKey').value.trim();
+  const gdeltQ    = packKey === 'custom' ? $('disc-customQuery').value : pack.gdelt;
+  const tvQ       = packKey === 'custom' ? $('disc-customQuery').value : pack.tv;
+  const govQ      = packKey === 'custom' ? $('disc-customQuery').value : pack?.gov;
+
+  if (!gdeltQ) { discSetStatus('Please enter a search query.', false); return; }
+
+  $('disc-runBtn').disabled = true;
+  discData = { articles: [], clips: [], speeches: [] };
+  $('disc-resultsGrid').style.display = 'grid';
+  $('disc-writePanel').style.display = 'none';
+  discSetStatus('Fetching GDELT Article archive (DOC 2.0)…', 'loading');
+
+  try {
+    discData.articles = await discFetchGdeltDoc(gdeltQ, timespan, maxRec);
+    discRenderGdelt(discData.articles);
+    discSetStatus(`${discData.articles.length} articles. Fetching TV broadcasts…`, 'loading');
+  } catch(e) {
+    discSetStatus('GDELT DOC error: ' + e.message, false);
+    $('disc-gdeltCount').textContent = 'ERR';
+  }
+
+  try {
+    discData.clips = await discFetchGdeltTv(tvQ, timespan);
+    discRenderTV(discData.clips);
+    discSetStatus(`${discData.articles.length} articles · ${discData.clips.length} TV clips${includeGov&&govKey?' · fetching Congressional Record…':'. Done.'}`, 'loading');
+  } catch(e) {
+    discSetStatus('GDELT TV error: ' + e.message, false);
+  }
+
+  if (includeGov && govKey) {
+    try {
+      discData.speeches = await discFetchGovInfo(govQ, govKey);
+      discRenderGovInfo(discData.speeches);
+    } catch(e) {
+      discSetStatus('GovInfo error: ' + e.message, false);
+    }
+  } else {
+    discRenderGovInfo([]);
+  }
+
+  const total = discData.articles.length + discData.clips.length + discData.speeches.length;
+  discSetStatus(`✓ ${total} items loaded — ${discData.articles.length} articles · ${discData.clips.length} TV clips · ${discData.speeches.length} floor speeches.`, true);
+  if (total > 0) discShowWritePanel();
+  $('disc-runBtn').disabled = false;
+}
+
+function discShowWritePanel() {
+  const avg = discAvgTone(discData.articles);
+  const stats = [
+    { val: discData.articles.length, label: 'Articles' },
+    { val: discData.clips.length,    label: 'TV Clips' },
+    { val: discData.speeches.length, label: 'Speeches' },
+    { val: avg.toFixed(2),           label: 'Avg Tone', color: avg>0?'#059669':avg<0?'#DC2626':'#1E3A5F' },
+  ];
+  $('disc-writeSummary').innerHTML = stats.map(s=>`
+    <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:8px; padding:12px; text-align:center;">
+      <div style="font-family:monospace; font-size:22px; font-weight:700; color:${s.color||'#1E3A5F'};">${s.val}</div>
+      <div style="font-size:10px; color:#9CA3AF; text-transform:uppercase; letter-spacing:.07em; margin-top:2px;">${s.label}</div>
+    </div>`).join('');
+  $('disc-writePanel').style.display = 'block';
+  $('disc-writePanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function discGetMonday(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(new Date(d).setDate(diff));
+}
+
+async function discWriteToSupabase() {
+  const btn = $('disc-writeBtn');
+  btn.disabled = true;
+  showStatus('disc-writeStatus', 'Writing discourse_items…', true);
+  const now = new Date().toISOString();
+
+  const allItems = [
+    ...discData.articles.map(a=>({ source:'gdelt_doc', type:'article',    title:a.title, url:a.url, domain:a.domain, published_at:a.published_at, tone_score:a.tone_score, narrative_key:discNarrativeKey, station:null, snippet:null, fetched_at:now })),
+    ...discData.clips.map(c=>({   source:'gdelt_tv',  type:'broadcast',   title:c.show||c.station, url:c.url, domain:null, published_at:c.date?new Date(c.date).toISOString():null, tone_score:null, narrative_key:discNarrativeKey, station:c.station, snippet:(c.snippet||'').slice(0,300), fetched_at:now })),
+    ...discData.speeches.map(s=>({ source:'govinfo',  type:'floor_speech',title:s.title, url:s.url, domain:null, published_at:s.published_at, tone_score:null, narrative_key:discNarrativeKey, station:null, snippet:(s.snippet||'').slice(0,300), fetched_at:now })),
+  ];
+
+  const CHUNK = 100;
+  let written = 0;
+  for (let i=0; i<allItems.length; i+=CHUNK) {
+    try {
+      const { error } = await sb.from('discourse_items').upsert(allItems.slice(i,i+CHUNK), { onConflict: 'url', ignoreDuplicates: true });
+      if (error) throw new Error(error.message);
+      written += Math.min(CHUNK, allItems.length-i);
+      showStatus('disc-writeStatus', `Writing… ${written}/${allItems.length} rows`, true);
+    } catch(e) {
+      showStatus('disc-writeStatus', 'Write error: ' + e.message, false);
+      btn.disabled = false; return;
+    }
+  }
+
+  // Weekly rollup
+  if (discData.articles.length > 0) {
+    const weekStart = discGetMonday(new Date()).toISOString().slice(0,10);
+    const rollup = {
+      narrative_key: discNarrativeKey, week_start: weekStart,
+      article_count: discData.articles.length,
+      avg_tone: parseFloat(discAvgTone(discData.articles).toFixed(3)),
+      pct_positive: parseFloat((discData.articles.filter(a=>a.tone_score>1).length/discData.articles.length*100).toFixed(2)),
+      top_domains: discDomainCounts(discData.articles).slice(0,5),
+      tv_station_counts: discStationCounts(discData.clips).slice(0,5),
+      created_at: now,
+    };
+    await sb.from('narrative_media_signals').upsert(rollup, { onConflict: 'narrative_key,week_start' }).catch(()=>{});
+  }
+
+  showStatus('disc-writeStatus', `✓ ${written} items written to discourse_items. Weekly rollup saved to narrative_media_signals.`, true);
+  btn.disabled = false;
+}
+
+function discClear() {
+  discData = { articles:[], clips:[], speeches:[] };
+  $('disc-resultsGrid').style.display = 'none';
+  $('disc-writePanel').style.display = 'none';
+  $('disc-status').innerHTML = '';
+  ['disc-gdeltCount','disc-tvCount','disc-govCount'].forEach(id=>$(id).textContent='—');
+  ['disc-avgTone','disc-posCount','disc-negCount'].forEach(id=>$(id).textContent='—');
+  $('disc-domains').innerHTML = 'Run fetch to load';
+  $('disc-articles').innerHTML = '';
+  $('disc-stations').innerHTML = 'Run fetch to load';
+  $('disc-clips').innerHTML = '';
+  $('disc-speeches').innerHTML = 'GovInfo key required';
+}
+
+function discToggleSQL() {
+  const b = $('disc-sqlBlock');
+  const i = $('disc-sqlIcon');
+  if (b.style.display==='none') { b.style.display='block'; i.textContent='▲ Hide'; }
+  else { b.style.display='none'; i.textContent='▼ Show'; }
+}
+
+
 
 
 </script>
