@@ -1468,11 +1468,11 @@ function switchBillView(view) {
 // ═══════════════════════════════════════════════
 
 const DISC_QUERY_PACKS = {
-  h1b:           { gdelt: '("H-1B" OR "H1B" OR "tech worker visa")',                        tv: '("H-1B" OR "H1B visa")',                          gov: 'H-1B visa technology workers' },
-  iamerican:     { gdelt: '("Indian Americans" OR "Indian American community")',             tv: '("Indian Americans" OR "Indian American voters")', gov: 'Indian Americans community' },
-  southasian:    { gdelt: '("South Asian" AND ("hate crime" OR "discrimination"))',          tv: '("South Asian" AND ("hate" OR "discrimination"))', gov: 'South Asian hate crimes discrimination' },
-  indiarelations:{ gdelt: '("US-India" OR "United States India" OR "India relations")',      tv: '("US-India" OR "India relations")',                gov: 'United States India bilateral relations' },
-  greencard:     { gdelt: '("green card backlog" OR "employment-based visa" OR "EB backlog")', tv: '("green card" AND "backlog")',                  gov: 'green card employment based immigration backlog India' },
+  h1b:           { gdelt: '(H-1B OR "H1B visa" OR "tech worker visa" OR "skilled visa")',       tv: '(H-1B OR "H1B visa" OR "guest worker")',           gov: 'H-1B visa technology workers' },
+  iamerican:     { gdelt: '("Indian Americans" OR "Indian American community" OR "Indian American voters")', tv: '("Indian Americans" OR "South Asian Americans")', gov: 'Indian Americans community' },
+  southasian:    { gdelt: '("South Asian" AND ("hate crime" OR discrimination OR "anti-Indian"))', tv: '("South Asian" AND (hate OR discrimination))',    gov: 'South Asian hate crimes discrimination' },
+  indiarelations:{ gdelt: '("US-India" OR "India-US" OR "United States India" OR "Modi Biden" OR "Modi Trump")', tv: '("US-India" OR "India relations" OR "Modi")', gov: 'United States India bilateral relations' },
+  greencard:     { gdelt: '("green card backlog" OR "employment-based" OR "EB-2 India" OR "EB-3 India")', tv: '("green card" AND (backlog OR India))',         gov: 'green card employment based immigration India' },
 };
 
 let discData = { articles: [], clips: [], speeches: [] };
