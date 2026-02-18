@@ -1523,29 +1523,28 @@ function discEsc(s) {
 // to avoid CORS restrictions. No direct browser calls to external APIs.
 
 async function discCallProxy(path) {
-  const res = await fetch(path, { signal: AbortSignal.timeout(25000) });
+  const res = await fetch(path, { signal: AbortSignal.timeout(30000) });
+  const body = await res.json().catch(() => ({ error: `HTTP ${res.status} (non-JSON)` }));
   if (!res.ok) {
-    // Parse the error JSON from our proxy which includes the upstream message
-    let errMsg = `HTTP ${res.status}`;
-    try {
-      const errBody = await res.json();
-      errMsg = errBody.error || errMsg;
-      if (errBody.upstream_url) console.error('Upstream URL:', errBody.upstream_url);
-    } catch {}
-    throw new Error(errMsg);
+    // Gemini proxies return { error, details, query_sent } on failure
+    const msg = body.details || body.error || `HTTP ${res.status}`;
+    if (body.query_sent) console.error('Query sent to GDELT:', body.query_sent);
+    throw new Error(msg);
   }
-  return res.json();
+  return body;
 }
 
 async function discFetchGdeltDoc(query, timespan, maxRecords) {
   const data = await discCallProxy(
     `/api/gdelt?source=doc&query=${encodeURIComponent(query)}&timespan=${timespan}&maxrecords=${maxRecords}`
   );
-  return (data.articles||[]).map(a=>({
-    title: a.title||'(no title)', url: a.url||'',
-    domain: a.domain||discExtractDomain(a.url),
+  // Robustly handle missing articles
+  return (data.articles || []).map(a => ({
+    title: a.title || '(no title)', 
+    url: a.url || '',
+    domain: a.domain || discExtractDomain(a.url),
     published_at: a.seendate ? discParseDate(a.seendate) : null,
-    tone_score: parseFloat(a.tone)||0,
+    tone_score: parseFloat(a.tone) || 0,
   }));
 }
 
@@ -1553,10 +1552,14 @@ async function discFetchGdeltTv(query, timespan) {
   const data = await discCallProxy(
     `/api/gdelt?source=tv&query=${encodeURIComponent(query)}&timespan=${timespan}`
   );
-  const clips = data.clips || data.show_clips || [];
-  return clips.map(c=>({
-    station: c.station||c.network||'Unknown', show: c.show||c.program||'',
-    date: c.date||c.datetime||'', snippet: c.snippet||c.preview||'', url: c.previewUrl||c.url||'',
+  // Gemini proxy uses ClipGallery mode — GDELT returns clips array
+  const clips = data.clips || data.show_clips || data.clip_gallery || [];
+  return clips.map(c => ({
+    station: c.station || c.network || 'Unknown',
+    show: c.show || c.program || c.showname || '',
+    date: c.date || c.datetime || c.showdate || '',
+    snippet: c.snippet || c.preview || c.text || '',
+    url: c.previewUrl || c.clipUrl || c.url || '',
   }));
 }
 
@@ -1565,12 +1568,15 @@ async function discFetchGovInfo(query, apiKey) {
   const data = await discCallProxy(
     `/api/govinfo?query=${encodeURIComponent(query)}&api_key=${encodeURIComponent(apiKey)}`
   );
-  return (data.results||[]).map(r=>({
-    title: r.title||r.packageId||'(no title)',
-    url: r.detailsLink||'',
-    published_at: r.dateIssued||null,
-    snippet: r.context||r.title||'',
-    chamber: r.granuleClass||'',
+  // GovInfo search results
+  const results = data.results || [];
+  return results.map(r => ({
+    title: r.title || r.packageId || '(no title)',
+    url: r.detailsLink || '',
+    published_at: r.dateIssued || null,
+    // ChatGPT proxy pre-fetches and populates snippet server-side
+    snippet: r.snippet || r.title || '',
+    chamber: r.chamber || '',
   }));
 }
 
