@@ -1309,25 +1309,51 @@ export default function IndianAmericanVoterAtlas() {
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>FBI Reported Incidents by Bias Category (2015–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: FBI UCR/NIBRS · Anti-Sikh tracking began 2015</p>
-                <div style={{ display: "flex", gap: 3, alignItems: "end", minHeight: 140, marginBottom: 12 }}>
-                  {fbiTrendData.map(d => {
-                    const max = 746;
-                    return (
-                      <div key={d.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <div style={{ display: "flex", gap: 2, alignItems: "end", height: 150 }}>
-                          <div title={`Anti-Asian: ${d.antiAsian}`} style={{ width: 10, height: Math.max((d.antiAsian / max) * 140, 2), background: C.red, borderRadius: "2px 2px 0 0", opacity: 0.75, transition: "height 0.5s" }} />
-                          <div title={`Anti-Sikh: ${d.antiSikh}`} style={{ width: 10, height: Math.max((d.antiSikh / max) * 140, 2), background: C.saffron, borderRadius: "2px 2px 0 0", transition: "height 0.5s" }} />
-                          <div title={`Anti-Hindu: ${d.antiHindu}`} style={{ width: 10, height: Math.max((d.antiHindu / max) * 140, 2), background: C.navy, borderRadius: "2px 2px 0 0", transition: "height 0.5s" }} />
-                        </div>
-                        <div style={{ fontSize: 9, color: C.textMuted, fontFamily: font.mono }}>{String(d.year).slice(2)}</div>
+                <div style={{ background: C.surfaceAlt, borderRadius: 10, padding: isMobile ? "16px 10px 12px" : "20px 24px 14px", border: `1px solid ${C.borderLight}` }}>
+                  {/* Y-axis + bars */}
+                  <div style={{ display: "flex", gap: 0 }}>
+                    {/* Y-axis labels */}
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: 180, paddingBottom: 2, paddingRight: 8, flexShrink: 0 }}>
+                      {[750, 500, 250, 0].map(v => (
+                        <div key={v} style={{ fontSize: 9, fontFamily: font.mono, color: C.textMuted, textAlign: "right", lineHeight: 1, minWidth: 26 }}>{v}</div>
+                      ))}
+                    </div>
+                    {/* Bars */}
+                    <div style={{ flex: 1, position: "relative" }}>
+                      {/* Grid lines */}
+                      {[0, 0.333, 0.667, 1].map((pct, i) => (
+                        <div key={i} style={{ position: "absolute", top: `${pct * 100}%`, left: 0, right: 0, height: 1, background: i === 3 ? C.border : C.borderLight, opacity: i === 3 ? 0.5 : 0.7 }} />
+                      ))}
+                      <div style={{ display: "flex", gap: isMobile ? 4 : 8, alignItems: "flex-end", height: 180, position: "relative" }}>
+                        {fbiTrendData.map(d => {
+                          const max = 750;
+                          const barH = 170;
+                          return (
+                            <div key={d.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0, minWidth: 0 }}>
+                              <div style={{ display: "flex", gap: isMobile ? 1 : 2, alignItems: "flex-end", height: barH, width: "100%", justifyContent: "center" }}>
+                                <div title={`Anti-Asian: ${d.antiAsian}`} style={{ width: isMobile ? "28%" : 14, maxWidth: 16, height: Math.max((d.antiAsian / max) * barH, 2), background: C.red, borderRadius: "2px 2px 0 0", opacity: 0.8, transition: "height 0.5s" }} />
+                                <div title={`Anti-Sikh: ${d.antiSikh}`} style={{ width: isMobile ? "28%" : 14, maxWidth: 16, height: Math.max((d.antiSikh / max) * barH, 2), background: C.saffron, borderRadius: "2px 2px 0 0", transition: "height 0.5s" }} />
+                                <div title={`Anti-Hindu: ${d.antiHindu}`} style={{ width: isMobile ? "28%" : 14, maxWidth: 16, height: Math.max((d.antiHindu / max) * barH, 2), background: C.navy, borderRadius: "2px 2px 0 0", transition: "height 0.5s" }} />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+                  {/* Year labels */}
+                  <div style={{ display: "flex", gap: isMobile ? 4 : 8, marginTop: 6, paddingLeft: 34 }}>
+                    {fbiTrendData.map(d => (
+                      <div key={d.year} style={{ flex: 1, textAlign: "center", fontSize: isMobile ? 8 : 10, fontFamily: font.mono, color: C.textMuted, fontWeight: 600 }}>
+                        {String(d.year).slice(2)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 20, justifyContent: "center" }}>
+                <div style={{ display: "flex", gap: 20, justifyContent: "center", marginTop: 14 }}>
                   {[{ l: "Anti-Asian (all)", c: C.red }, { l: "Anti-Sikh", c: C.saffron }, { l: "Anti-Hindu", c: C.navy }].map(x => (
                     <div key={x.l} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textSecondary }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 2, background: x.c, opacity: 0.75 }} />{x.l}
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: x.c, opacity: 0.8 }} />{x.l}
                     </div>
                   ))}
                 </div>
@@ -1734,27 +1760,59 @@ export default function IndianAmericanVoterAtlas() {
                   </p>
 
                   {/* Bar chart */}
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 2 : 4, height: 200, borderBottom: `1px solid ${C.border}` }}>
-                    {trendRows.map(r => {
-                      const total = r.permCertified || 0;
-                      const india = r.permIndia || 0;
-                      const totalH = Math.max(total / trendMax * 190, total > 0 ? 3 : 0);
-                      const indiaH = total > 0 ? Math.max(india / trendMax * 190, india > 0 ? 3 : 0) : 0;
-                      return (
-                        <div key={r.dataFiscalYear} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
-                          title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
-                          <div style={{ width: "100%", position: "relative", height: totalH }}>
-                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
-                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
+                  {(() => {
+                    const chartH = 200;
+                    const barArea = chartH - 10;
+                    // Compute nice Y-axis ticks
+                    const rawMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
+                    const niceMax = rawMax <= 100 ? Math.ceil(rawMax / 20) * 20
+                      : rawMax <= 500 ? Math.ceil(rawMax / 100) * 100
+                      : rawMax <= 2000 ? Math.ceil(rawMax / 500) * 500
+                      : rawMax <= 10000 ? Math.ceil(rawMax / 2000) * 2000
+                      : Math.ceil(rawMax / 5000) * 5000;
+                    const tickCount = 4;
+                    const ticks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(niceMax * (tickCount - i) / tickCount));
+                    const fmtTick = v => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 || v % 1000 === 0 ? 0 : 1)}K` : String(v);
+
+                    return (
+                      <div style={{ display: "flex", gap: 0 }}>
+                        {/* Y-axis */}
+                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, paddingRight: 8, flexShrink: 0, paddingBottom: 0 }}>
+                          {ticks.map(v => (
+                            <div key={v} style={{ fontSize: 9, fontFamily: font.mono, color: C.textMuted, textAlign: "right", lineHeight: 1, minWidth: isMobile ? 24 : 30 }}>{fmtTick(v)}</div>
+                          ))}
+                        </div>
+                        {/* Bar area */}
+                        <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                          {/* Grid lines */}
+                          {ticks.map((v, i) => (
+                            <div key={i} style={{ position: "absolute", top: `${(i / tickCount) * 100}%`, left: 0, right: 0, height: 1, background: i === tickCount ? C.border : C.borderLight, opacity: i === tickCount ? 0.5 : 0.6 }} />
+                          ))}
+                          <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 1 : 4, height: chartH, position: "relative" }}>
+                            {trendRows.map(r => {
+                              const total = r.permCertified || 0;
+                              const india = r.permIndia || 0;
+                              const totalH = niceMax > 0 ? Math.max(total / niceMax * barArea, total > 0 ? 3 : 0) : 0;
+                              const indiaH = niceMax > 0 && total > 0 ? Math.max(india / niceMax * barArea, india > 0 ? 3 : 0) : 0;
+                              return (
+                                <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
+                                  title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
+                                  <div style={{ width: "100%", maxWidth: isMobile ? undefined : 36, position: "relative", height: totalH }}>
+                                    <div style={{ position: "absolute", bottom: 0, left: isMobile ? "5%" : 0, right: isMobile ? "5%" : 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
+                                    <div style={{ position: "absolute", bottom: 0, left: isMobile ? "5%" : 0, right: isMobile ? "5%" : 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })()}
                   {/* Year labels */}
-                  <div style={{ display: "flex", gap: isMobile ? 2 : 4, marginTop: 6 }}>
+                  <div style={{ display: "flex", gap: isMobile ? 1 : 4, marginTop: 6, paddingLeft: isMobile ? 28 : 38 }}>
                     {trendRows.map(r => (
-                      <div key={r.dataFiscalYear} style={{ flex: 1, textAlign: "center", fontSize: isMobile ? 8 : 10, fontFamily: font.mono, color: C.textMuted }}>
+                      <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: isMobile ? 7 : 10, fontFamily: font.mono, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {r.dataFiscalYear.replace("FY", "'")}
                       </div>
                     ))}
