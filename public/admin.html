@@ -474,7 +474,7 @@
           </div>
           <p class="text-muted mb-16">Search YouTube for videos about Indian American politics, immigration, and community issues. Track videos to build a curated discourse feed for the dashboard. View counts serve as an engagement proxy.</p>
           <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:8px 12px; margin-bottom:12px;">
-            <p style="margin:0; font-size:11px; color:#166534;">✓ YouTube API key configured — restricted to voteratlas.io + YouTube Data API v3</p>
+            <p style="margin:0; font-size:11px; color:#166534;">✓ YouTube API proxied via Supabase Edge Function — key is server-side only</p>
           </div>
           <div class="flex gap-8 mb-16" style="flex-wrap:wrap;">
             <input type="text" id="yt-query" placeholder="Search (e.g. Indian American vote, H-1B green card)" style="flex:1; min-width:200px;" />
@@ -532,10 +532,11 @@
 
 const SUPABASE_URL = window.APP_CONFIG.SUPABASE_URL;
 const SUPABASE_ANON = window.APP_CONFIG.SUPABASE_ANON;
-const CENSUS_KEY = window.APP_CONFIG.CENSUS_KEY;
-const CONGRESS_KEY = window.APP_CONFIG.CONGRESS_KEY;
+// Census key moved server-side (Supabase Edge Function)
+// Congress key moved server-side (Supabase Edge Function)
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const EDGE_FN_BASE = SUPABASE_URL + '/functions/v1';
 
 // State FIPS → abbreviation
 const FIPS = {"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
@@ -916,46 +917,19 @@ async function runCensus() {
     // 030E = Other Asian & PI languages (Telugu, Tamil, Kannada, Malayalam) - total speakers
     // 032E = Other Asian & PI - Speak English less than "very well" (LEP)
 
-    const vintages = ['2022', '2021', '2023'];
-    let data = null;
-    let usedVintage = null;
-
-    for (const yr of vintages) {
-      showStatus('census-status', `⏳ Trying ACS ${yr}...`, true);
-      try {
-        const vars = 'NAME,C16001_001E,C16001_015E,C16001_017E,C16001_030E,C16001_032E';
-        const url = `https://api.census.gov/data/${yr}/acs/acs5?get=${vars}&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          data = await res.json();
-          usedVintage = yr;
-          break;
-        }
-      } catch (e) { /* try next vintage */ }
+    // Call Census proxy Edge Function (handles vintage fallback server-side)
+    showStatus('census-status', '⏳ Fetching language data via proxy...', true);
+    const censusRes = await fetch(`${EDGE_FN_BASE}/census-proxy?action=language`);
+    if (!censusRes.ok) {
+      const err = await censusRes.json();
+      throw new Error(err.error || `Census proxy returned ${censusRes.status}`);
     }
-
-    // If collapsed table fails, try with just total + English only (always available)
-    if (!data) {
-      showStatus('census-status', '⏳ Detailed language table unavailable at CD level. Trying simplified approach...', true);
-      const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B16004_001E,B16004_067E,B16004_068E,B16004_069E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        data = await res.json();
-        usedVintage = '2022-B16004';
-      }
-    }
+    const censusPayload = await censusRes.json();
+    const data = censusPayload.data;
+    const usedVintage = censusPayload.vintage;
 
     if (!data) {
-      // Last resort: try the simplest possible language query
-      const url = `https://api.census.gov/data/2022/acs/acs5/profile?get=NAME,DP02_0113E,DP02_0114E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        data = await res.json();
-        usedVintage = '2022-DP02';
-      } else {
-        const errText = await res.text();
-        throw new Error(`All Census language tables returned errors. Last attempt: ${res.status} — ${errText.substring(0, 300)}`);
-      }
+      throw new Error('Census proxy returned no data');
     }
 
     const headers = data[0];
@@ -1055,11 +1029,13 @@ async function runVerify() {
   showStatus('verify-status', '⏳ Pulling Asian Indian population from Census...', true);
 
   try {
-    // B02015_002E = Asian Indian alone
-    const url = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B02015_002E&for=congressional%20district:*&in=state:*&key=${CENSUS_KEY}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Census API returned ${res.status}`);
-    const data = await res.json();
+    // Call Census proxy Edge Function
+    const verifyRes = await fetch(`${EDGE_FN_BASE}/census-proxy?action=verify`);
+    if (!verifyRes.ok) {
+      const err = await verifyRes.json();
+      throw new Error(err.error || `Census proxy returned ${verifyRes.status}`);
+    }
+    const { data } = await verifyRes.json();
     const headers = data[0];
     const rows = data.slice(1);
 
@@ -1161,12 +1137,12 @@ async function searchBills() {
   showStatus('bill-status', `⏳ Searching Congress.gov for "${query}"...`, true);
 
   try {
-    // Search current congress (119th)
-    const url = `https://api.congress.gov/v3/bill?query=${encodeURIComponent(query)}&limit=20&sort=updateDate+desc&api_key=${CONGRESS_KEY}`;
+    // Call Congress proxy Edge Function
+    const url = `${EDGE_FN_BASE}/congress-proxy?q=${encodeURIComponent(query)}&limit=20`;
     const res = await fetch(url);
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Congress API returned ${res.status}: ${text.substring(0, 200)}`);
+      const err = await res.json();
+      throw new Error(err.error || `Congress proxy returned ${res.status}`);
     }
     const data = await res.json();
     const bills = data.bills || [];
@@ -1360,7 +1336,6 @@ function switchYTView(view) {
 }
 
 async function searchYouTube() {
-  const key = window.APP_CONFIG.YOUTUBE_KEY;
   const query = $('yt-query').value.trim();
   const order = $('yt-order').value;
   if (!query) { showStatus('yt-status', 'Enter a search term.', false); return; }
@@ -1368,29 +1343,20 @@ async function searchYouTube() {
   showStatus('yt-status', `⏳ Searching YouTube for "${query}"...`, true);
 
   try {
-    // Step 1: Search
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&order=${order}&q=${encodeURIComponent(query)}&key=${key}`;
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) {
-      const err = await searchRes.json();
-      throw new Error(err.error?.message || `YouTube API returned ${searchRes.status}`);
+    // Call Edge Function (API key stays server-side)
+    const proxyUrl = `${EDGE_FN_BASE}/youtube-proxy?action=search&q=${encodeURIComponent(query)}&order=${order}&maxResults=15`;
+    const res = await fetch(proxyUrl);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || `Proxy returned ${res.status}`);
     }
-    const searchData = await searchRes.json();
-    const items = searchData.items || [];
+    const { items, stats: statsMap } = await res.json();
 
-    if (!items.length) {
+    if (!items?.length) {
       showStatus('yt-status', `No results for "${query}".`, true);
       $('yt-preview').innerHTML = '';
       return;
     }
-
-    // Step 2: Get video stats (views, likes, etc.)
-    const videoIds = items.map(i => i.id.videoId).join(',');
-    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails&id=${videoIds}&key=${key}`;
-    const statsRes = await fetch(statsUrl);
-    const statsData = await statsRes.json();
-    const statsMap = {};
-    (statsData.items || []).forEach(v => { statsMap[v.id] = { stats: v.statistics, duration: v.contentDetails?.duration }; });
 
     ytSearchResults = items.map(item => {
       const s = statsMap[item.id.videoId] || {};
@@ -1542,18 +1508,16 @@ async function untrackVideo(videoId) {
 }
 
 async function refreshYTStats() {
-  const key = window.APP_CONFIG.YOUTUBE_KEY;
-
   const { data } = await sb.from('youtube_tracker').select('video_id');
   if (!data?.length) { alert('No tracked videos to refresh.'); return; }
 
   showStatus('yt-status', '⏳ Refreshing view counts...', true);
 
-  // Batch in groups of 50
+  // Batch in groups of 50 via Edge Function
   for (let i = 0; i < data.length; i += 50) {
     const batch = data.slice(i, i + 50);
     const ids = batch.map(v => v.video_id).join(',');
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${key}`;
+    const url = `${EDGE_FN_BASE}/youtube-proxy?action=stats&ids=${ids}`;
     const res = await fetch(url);
     if (!res.ok) continue;
     const result = await res.json();
