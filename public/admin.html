@@ -1468,11 +1468,11 @@ function switchBillView(view) {
 // ═══════════════════════════════════════════════
 
 const DISC_QUERY_PACKS = {
-  h1b:           { gdelt: '"H-1B" OR "H1B" OR "tech worker visa"',               tv: '"H-1B" OR "H1B visa"',                     gov: 'H-1B visa technology workers' },
-  iamerican:     { gdelt: '"Indian Americans" OR "Indian American community"',    tv: '"Indian Americans" OR "Indian American voters"', gov: 'Indian Americans community' },
-  southasian:    { gdelt: '"South Asian" hate crime OR discrimination',           tv: '"South Asian" hate OR discrimination',      gov: 'South Asian hate crimes discrimination' },
-  indiarelations:{ gdelt: '"United States" India relations OR "US-India"',        tv: '"US-India" OR "United States India"',       gov: 'United States India bilateral relations' },
-  greencard:     { gdelt: '"green card" backlog OR "employment-based" visa India', tv: '"green card" backlog India',               gov: 'green card employment based immigration backlog India' },
+  h1b:           { gdelt: '("H-1B" OR "H1B" OR "tech worker visa")',                        tv: '("H-1B" OR "H1B visa")',                          gov: 'H-1B visa technology workers' },
+  iamerican:     { gdelt: '("Indian Americans" OR "Indian American community")',             tv: '("Indian Americans" OR "Indian American voters")', gov: 'Indian Americans community' },
+  southasian:    { gdelt: '("South Asian" AND ("hate crime" OR "discrimination"))',          tv: '("South Asian" AND ("hate" OR "discrimination"))', gov: 'South Asian hate crimes discrimination' },
+  indiarelations:{ gdelt: '("US-India" OR "United States India" OR "India relations")',      tv: '("US-India" OR "India relations")',                gov: 'United States India bilateral relations' },
+  greencard:     { gdelt: '("green card backlog" OR "employment-based visa" OR "EB backlog")', tv: '("green card" AND "backlog")',                  gov: 'green card employment based immigration backlog India' },
 };
 
 let discData = { articles: [], clips: [], speeches: [] };
@@ -1683,6 +1683,7 @@ async function discFetch(includeGov) {
   }
 
   try {
+    await new Promise(r => setTimeout(r, 5500)); // GDELT rate limit: 1 req/5s
     discData.clips = await discFetchGdeltTv(tvQ, timespan);
     discRenderTV(discData.clips);
     discSetStatus(`${discData.articles.length} articles · ${discData.clips.length} TV clips${includeGov&&govKey?' · fetching Congressional Record…':'. Done.'}`, 'loading');
