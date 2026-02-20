@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -433,9 +433,32 @@ const DISTRICT_COORDS = {
 
 function FitBounds({ bounds }) {
   const map = useMap();
+  const prevBoundsKey = useRef(null);
   useEffect(() => {
-    if (bounds && bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+    if (!bounds || !bounds.length) return;
+    const key = JSON.stringify(bounds);
+    if (key !== prevBoundsKey.current) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+      prevBoundsKey.current = key;
+    }
   }, [bounds, map]);
+  return null;
+}
+
+function CtrlScrollZoom() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const handler = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) map.zoomIn();
+        else map.zoomOut();
+      }
+    };
+    container.addEventListener("wheel", handler, { passive: false });
+    return () => container.removeEventListener("wheel", handler);
+  }, [map]);
   return null;
 }
 
@@ -476,6 +499,7 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
         <FitBounds bounds={bounds} />
+        <CtrlScrollZoom />
         {districts.map(d => {
           const coord = DISTRICT_COORDS[d.id];
           if (!coord) return null;
