@@ -1137,7 +1137,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Presidential vote trend chart */}
-            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Indian American Presidential Vote (2004–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 20px" }}>Sources: NAAS (2004–2016), Carnegie IAAS (2020, 2024)</p>
@@ -1182,7 +1182,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Gender & Age breakdown */}
-            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>The Gender-Age Divide: Where the Shift Happened</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: Carnegie IAAS 2024 · Shift = change in Trump support from 2020</p>
@@ -1236,7 +1236,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Trump Approval Among Indian Americans */}
-            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}`, borderLeft: `4px solid ${C.royalBlue}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}`, borderLeft: `4px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                   <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>IAAS 2026: Trump Approval Among Indian Americans</h3>
@@ -1368,7 +1368,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Precinct-Level Swings */}
-            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Precinct-Level Swings in Indian American Enclaves</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Sources: County clerk certified results, Catalist, Diya TV, precinct-level analysis (Cornell Law / Siddharth Khurana)</p>
@@ -1459,7 +1459,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* FBI trend */}
-            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>FBI Reported Incidents by Bias Category (2015–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: FBI UCR/NIBRS · Anti-Sikh tracking began 2015</p>
