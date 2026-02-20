@@ -589,48 +589,6 @@ function PersuasionBar({ score }) {
   );
 }
 
-const InfoTip = ({ text }) => {
-  const [pinned, setPinned] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const show = pinned || hovered;
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!pinned) return;
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setPinned(false);
-    };
-    document.addEventListener("click", handler, true);
-    return () => document.removeEventListener("click", handler, true);
-  }, [pinned]);
-  return (
-    <span
-      ref={ref}
-      style={{ position: "relative", display: "inline-block", marginLeft: 4, cursor: "pointer" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={(e) => { e.stopPropagation(); setPinned(!pinned); }}
-    >
-      <span style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700,
-        fontFamily: font.mono, background: pinned || hovered ? C.navy : C.borderLight,
-        color: pinned || hovered ? "#fff" : C.textMuted,
-        lineHeight: 1, userSelect: "none", transition: "all 0.15s ease",
-      }}>i</span>
-      {show && (
-        <span style={{
-          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-          width: 220, padding: "8px 10px", borderRadius: 6,
-          background: C.navy, color: "#fff", fontSize: 11, fontFamily: font.body,
-          fontWeight: 400, lineHeight: 1.4, zIndex: 200,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          textTransform: "none", letterSpacing: 0,
-        }}>{text}</span>
-      )}
-    </span>
-  );
-};
-
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
@@ -655,6 +613,7 @@ export default function IndianAmericanVoterAtlas() {
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
   const [permEmpYear, setPermEmpYear] = useState("");
   const [methOpen, setMethOpen] = useState(null);
+  const [activeInfoBox, setActiveInfoBox] = useState(null); // "density" | "persuasion" | null
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
 
@@ -974,6 +933,36 @@ export default function IndianAmericanVoterAtlas() {
             <Card>
               {/* Desktop table */}
               {!isMobile && <>
+              {activeInfoBox && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                  padding: "12px 16px", marginBottom: 12, borderRadius: 8,
+                  borderLeft: `4px solid ${C.navy}`,
+                  background: "rgba(30,58,95,0.06)",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: 11, fontWeight: 700, fontFamily: font.mono,
+                      color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
+                      marginBottom: 4,
+                    }}>
+                      {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                    </div>
+                    <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
+                      {activeInfoBox === "density"
+                        ? "Composite score (0–100) measuring Indian American civic presence in the district: census population share, FEC donor density, cultural institutions (temples, gurdwaras, businesses), Google Trends signals, and H-1B/PERM employment data. Higher scores indicate deeper community roots and infrastructure."
+                        : "Composite score (0–100) measuring how moveable the Indian American vote is in the district: Cook PVI competitiveness, 2020→2024 precinct-level swing, independent identification rate, population size relative to margin, and bounceback evidence from prior cycles. Higher scores indicate greater strategic opportunity for outreach."}
+                    </div>
+                  </div>
+                  <span
+                    onClick={() => setActiveInfoBox(null)}
+                    style={{
+                      cursor: "pointer", fontSize: 18, lineHeight: 1,
+                      color: C.textMuted, fontWeight: 300, userSelect: "none",
+                    }}
+                  >×</span>
+                </div>
+              )}
               {/* Table header */}
               <div style={{
                 display: "grid", gridTemplateColumns: "68px 1fr 64px 76px 108px 100px 100px", gap: "0 8px",
@@ -982,7 +971,7 @@ export default function IndianAmericanVoterAtlas() {
                 textTransform: "uppercase", letterSpacing: 1,
               }}>
                 <div>District</div><div>Representative</div><div style={{ textAlign: "right" }}>Indian %</div>
-                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
+                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
               </div>
               <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "6px 16px", marginBottom: 0 }}>
                 <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
@@ -1029,6 +1018,36 @@ export default function IndianAmericanVoterAtlas() {
                   <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "8px 12px", marginBottom: 0 }}>
                     <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
                   </div>
+                  {activeInfoBox && (
+                    <div style={{
+                      display: "flex", alignItems: "flex-start", gap: 12,
+                      padding: "12px 16px", marginBottom: 12, borderRadius: 8,
+                      borderLeft: `4px solid ${C.navy}`,
+                      background: "rgba(30,58,95,0.06)",
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: 11, fontWeight: 700, fontFamily: font.mono,
+                          color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
+                          marginBottom: 4,
+                        }}>
+                          {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                        </div>
+                        <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
+                          {activeInfoBox === "density"
+                            ? "Composite score (0–100) measuring Indian American civic presence in the district: census population share, FEC donor density, cultural institutions (temples, gurdwaras, businesses), Google Trends signals, and H-1B/PERM employment data. Higher scores indicate deeper community roots and infrastructure."
+                            : "Composite score (0–100) measuring how moveable the Indian American vote is in the district: Cook PVI competitiveness, 2020→2024 precinct-level swing, independent identification rate, population size relative to margin, and bounceback evidence from prior cycles. Higher scores indicate greater strategic opportunity for outreach."}
+                        </div>
+                      </div>
+                      <span
+                        onClick={() => setActiveInfoBox(null)}
+                        style={{
+                          cursor: "pointer", fontSize: 18, lineHeight: 1,
+                          color: C.textMuted, fontWeight: 300, userSelect: "none",
+                        }}
+                      >×</span>
+                    </div>
+                  )}
                   {sortedDistricts.map((d, i) => (
                     <div key={d.id} onClick={() => setExpandedRow(expandedRow === d.id ? null : d.id)}
                       style={{
@@ -1056,11 +1075,11 @@ export default function IndianAmericanVoterAtlas() {
                       {/* Row 3: Bars side by side */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
                           <DensityBar score={d.densityScore} />
                         </div>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
                           <PersuasionBar score={d.persuasionScore} />
                         </div>
                       </div>
