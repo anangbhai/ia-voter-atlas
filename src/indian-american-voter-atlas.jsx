@@ -263,7 +263,7 @@ const DENSITY_METHODS = [
 const PERSUASION_METHODS = [
   { name: "District Competitiveness", weight: 30, description: "Cook PVI and 2026 race rating. Toss Up and Lean districts score highest — persuasion only matters where outcomes are contested. Solid D/R districts score low regardless of Indian American population size.", icon: "⚖️" },
   { name: "2020→2024 Swing Magnitude", weight: 25, description: "Measured shift in the Indian American vote from Biden 2020 to Harris 2024 using precinct-level returns from heavily Indian American precincts. Larger swings indicate demonstrated persuadability — voters who moved once can move again.", icon: "📈" },
-  { name: "Independent Identification Rate", weight: 20, description: "District-level proxy derived from Carnegie IAAS party ID data applied to state-level weights. The 11-point national surge in Indian American Independent identification (15%→26%) varies by region — districts in dealigning metros score higher.", icon: "🔀" },
+  { name: "Independent Identification Rate", weight: 20, description: "District-level proxy derived from Carnegie IAAS party ID data applied to state-level weights. The 14-point national surge in Indian American Independent identification (15%→29%) varies by region — districts in dealigning metros score higher.", icon: "🔀" },
   { name: "Indian American Population Size", weight: 15, description: "Absolute number of Indian American eligible voters. A high persuasion score in a district with 2,000 Indian Americans is less actionable than a moderate score in a district with 60,000.", icon: "👥" },
   { name: "Bounceback Evidence", weight: 10, description: "Where available, 2025 off-cycle election data (NJ governor, VA local) showing whether the 2024 rightward shift held or reverted. Districts showing bounceback receive higher persuasion scores because the electorate is actively in motion.", icon: "🔄" },
 ];
@@ -288,6 +288,7 @@ const GENDER_AGE_VOTE = [
 const PARTY_ID = [
   { year: "2020", dem: 56, gop: 18, ind: 15 },
   { year: "2024", dem: 47, gop: 21, ind: 26 },
+  { year: "2026", dem: 46, gop: 19, ind: 29 },
 ];
 
 const TOP_ISSUES = [
@@ -320,7 +321,7 @@ const ELECTION_KEY_STATS = {
   gopId: "21% (same)",
   indId: "26% (↑11)",
   youngMenTrump: "48%",
-  surveySrc: "Carnegie IAAS 2024 (n=714, ±3.7%)",
+  surveySrc: "Carnegie IAAS 2024 (n=714, ±3.7%) · IAAS 2026 (n=1,000, ±3.6%)",
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1163,6 +1164,88 @@ export default function IndianAmericanVoterAtlas() {
               </div>
             </Card>
 
+            {/* Trump Approval Among Indian Americans */}
+            <Card style={{ marginBottom: 24, borderLeft: `4px solid #7C3AED` }}>
+              <div style={{ padding: "20px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>IAAS 2026: Trump Approval Among Indian Americans</h3>
+                  <Badge color="#7C3AED" bg="#EDE9FE">NEW DATA</Badge>
+                </div>
+                <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>
+                  Carnegie Endowment IAAS 2026 (n=1,000, ±3.6%, fielded Nov 25 2025–Jan 6 2026). Note that these are approval ratings, not vote share.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, marginBottom: 16 }}>
+                  {/* Table A — By Gender */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>By Gender</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: font.body }}>
+                      <thead>
+                        <tr style={{ borderBottom: `2px solid ${C.borderLight}` }}>
+                          <th style={{ textAlign: "left", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Group</th>
+                          <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Approve</th>
+                          <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Disapprove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { group: "Female", approve: 26, disapprove: 74 },
+                          { group: "Male", approve: 30, disapprove: 70 },
+                        ].map((r, i) => (
+                          <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
+                            <td style={{ padding: "8px", fontWeight: 600, color: C.text }}>{r.group}</td>
+                            <td style={{ padding: "8px", textAlign: "right", fontFamily: font.mono, fontWeight: 700, color: C.textSecondary }}>{r.approve}%</td>
+                            <td style={{ padding: "8px", textAlign: "right", fontFamily: font.mono, fontWeight: 700, color: C.textSecondary }}>{r.disapprove}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Table B — By Race/Ethnicity */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>By Race / Ethnicity</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: font.body }}>
+                      <thead>
+                        <tr style={{ borderBottom: `2px solid ${C.borderLight}` }}>
+                          <th style={{ textAlign: "left", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Group</th>
+                          <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Approve</th>
+                          <th style={{ textAlign: "right", padding: "6px 8px", fontSize: 11, fontWeight: 700, color: C.textMuted, fontFamily: font.mono }}>Disapprove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { group: "Indian American", approve: 28, disapprove: 72, highlight: true },
+                          { group: "Hispanic", approve: 30, disapprove: 67, highlight: false },
+                          { group: "Black", approve: 8, disapprove: 85, highlight: false },
+                          { group: "White", approve: 48, disapprove: 48, highlight: false },
+                        ].map((r, i) => (
+                          <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}`, background: r.highlight ? C.saffronBg : "transparent" }}>
+                            <td style={{ padding: "8px", fontWeight: 600, color: C.text }}>{r.group}</td>
+                            <td style={{ padding: "8px", textAlign: "right", fontFamily: font.mono, fontWeight: 700, color: C.textSecondary }}>{r.approve}%</td>
+                            <td style={{ padding: "8px", textAlign: "right", fontFamily: font.mono, fontWeight: 700, color: C.textSecondary }}>{r.disapprove}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12 }}>
+                  <div style={{ flex: 1, padding: "14px 16px", background: C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Overall</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: "#7C3AED", lineHeight: 1 }}>29% approve</div>
+                    <div style={{ fontSize: 12, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>55% strongly disapprove</div>
+                  </div>
+                  <div style={{ flex: 1, padding: "14px 16px", background: C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>US-India Relations</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: "#7C3AED", lineHeight: 1 }}>Only 20% approve</div>
+                    <div style={{ fontSize: 12, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>Trump's handling — down from 48% who approved Biden's in 2024</div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
             {/* Two column: Party ID shift + Top Issues */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
               {/* Party ID */}
@@ -1186,7 +1269,7 @@ export default function IndianAmericanVoterAtlas() {
                     </div>
                   ))}
                   <p style={{ fontSize: 12, color: C.textMuted, marginTop: 12, lineHeight: 1.5 }}>
-                    The biggest shift: Democrats lost 9 pts while Independents gained 11 pts. Republican ID held flat — suggesting erosion is to non-alignment, not to the GOP.
+                    The three-wave trend: Independent identification surged from 15%→29% since 2020, while Democratic ID fell from 56% to 46%. Republican ID peaked at 21% in 2024 but slipped to 19% in 2026 — the dealignment is running to non-affiliation, not to the GOP. Liberal identification fell from 25% in 2024 to 21% in 2026, while moderates rose to 32% — the community is moving to the center, not to the right.
                   </p>
                 </div>
               </Card>
