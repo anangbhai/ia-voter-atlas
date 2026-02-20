@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 const CONTACT_EMAIL = "anang+voteratlas@gmail.com";
@@ -433,9 +433,32 @@ const DISTRICT_COORDS = {
 
 function FitBounds({ bounds }) {
   const map = useMap();
+  const prevBoundsKey = useRef(null);
   useEffect(() => {
-    if (bounds && bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+    if (!bounds || !bounds.length) return;
+    const key = JSON.stringify(bounds);
+    if (key !== prevBoundsKey.current) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+      prevBoundsKey.current = key;
+    }
   }, [bounds, map]);
+  return null;
+}
+
+function CtrlScrollZoom() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const handler = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) map.zoomIn();
+        else map.zoomOut();
+      }
+    };
+    container.addEventListener("wheel", handler, { passive: false });
+    return () => container.removeEventListener("wheel", handler);
+  }, [map]);
   return null;
 }
 
@@ -476,6 +499,7 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
         <FitBounds bounds={bounds} />
+        <CtrlScrollZoom />
         {districts.map(d => {
           const coord = DISTRICT_COORDS[d.id];
           if (!coord) return null;
@@ -492,23 +516,7 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
                 weight: isSelected ? 3 : 1.5,
               }}
               eventHandlers={{ click: () => onSelect(d.id) }}
-            >
-              <Popup>
-                <div style={{ fontFamily: font.body, minWidth: 180 }}>
-                  <div style={{ fontFamily: font.mono, fontWeight: 700, fontSize: 15, color: d.party === "D" ? C.dem : C.gop, marginBottom: 2 }}>{d.id}</div>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-                    {d.rep}
-                    {d.indianRep && <span style={{ marginLeft: 4, fontSize: 9, color: C.saffronText, fontWeight: 700 }}>IA</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>
-                    {d.metro}<br />
-                    Indian pop: {(d.indianPop / 1000).toFixed(0)}K ({d.indianPct}%)<br />
-                    Rating: {d.cook2026}<br />
-                    Density: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong> · Persuasion: <strong style={{ color: "#6D28D9" }}>{d.persuasionScore}</strong>
-                  </div>
-                </div>
-              </Popup>
-            </CircleMarker>
+            />
           );
         })}
       </MapContainer>
@@ -857,6 +865,58 @@ export default function IndianAmericanVoterAtlas() {
                 <span style={{ fontSize: 10, color: C.textMuted }}>· Circle size = Indian American population</span>
               </div>
             </div>
+
+            {expandedRow != null && (() => {
+              const sel = sortedDistricts.find(d => d.id === expandedRow);
+              if (!sel) return null;
+              return (
+                <div style={{
+                  display: "flex", alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: isMobile ? 8 : 16,
+                  padding: isMobile ? "12px 14px" : "14px 20px",
+                  marginBottom: 12,
+                  background: C.surface,
+                  borderRadius: 10,
+                  borderLeft: `4px solid ${C.saffron}`,
+                  border: `1px solid ${C.borderLight}`,
+                  borderLeftColor: C.saffron,
+                  borderLeftWidth: 4,
+                  position: "relative",
+                }}>
+                  <button
+                    onClick={() => setExpandedRow(null)}
+                    aria-label="Close"
+                    style={{
+                      position: "absolute", top: 8, right: 10,
+                      background: "none", border: "none", cursor: "pointer",
+                      fontSize: 18, lineHeight: 1, color: C.textMuted, fontFamily: font.body,
+                      padding: "0 4px",
+                    }}
+                  >&times;</button>
+
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontFamily: font.mono, fontWeight: 700, fontSize: 16, color: sel.party === "D" ? C.dem : C.gop }}>{sel.id}</span>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: C.text }}>{sel.rep}</span>
+                  </div>
+
+                  <div style={{
+                    display: "flex", flexWrap: "wrap", gap: isMobile ? "4px 12px" : "4px 16px",
+                    fontSize: 12, color: C.textSecondary, fontFamily: font.body, lineHeight: 1.6,
+                    paddingRight: 24,
+                  }}>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Metro:</span> {sel.metro}</span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Rating:</span> {sel.cook2026}</span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Indian pop:</span> {(sel.indianPop / 1000).toFixed(0)}K ({sel.indianPct}%)</span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Harris 2024:</span> {sel.harris2024}%</span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Cook PVI:</span> {sel.cookPVI}</span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Density:</span> <strong style={{ color: C.saffronText }}>{sel.densityScore}</strong></span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Persuasion:</span> <strong style={{ color: "#6D28D9" }}>{sel.persuasionScore}</strong></span>
+                    {sel.notes && <span style={{ flexBasis: "100%", fontSize: 11, color: C.textMuted, fontStyle: "italic" }}>{sel.notes}</span>}
+                  </div>
+                </div>
+              );
+            })()}
 
             <Card>
               {/* Desktop table */}
