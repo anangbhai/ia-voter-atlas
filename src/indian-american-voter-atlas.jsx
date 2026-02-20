@@ -369,6 +369,11 @@ const C = {
   positiveBg: "#ECFDF5",
   negative: "#B91C1C",
   negativeBg: "#FEF2F2",
+  // Royal blue accent (survey/poll cards)
+  royalBlue: "#305CDE",
+  royalBlueLight: "#EEF2FF",
+  // Data visualization warm accent
+  dataWarm: "#895129",
   // Legacy aliases (severity — deprecated in favor of sev* tokens)
   red: "#9B2335",
   redLight: "#FEE2E2",
@@ -476,7 +481,7 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
       return d.party === "D" ? C.dem : C.gop;
     }
     // default: density
-    return d.densityScore > 80 ? "#B45309" : d.densityScore > 60 ? C.saffron : "#FBBF24";
+    return d.densityScore >= 90 ? C.dataWarm : d.densityScore > 80 ? "#B45309" : d.densityScore > 60 ? C.saffron : "#FBBF24";
   };
 
   const getRadius = (d) => {
@@ -559,7 +564,7 @@ function DensityBar({ score }) {
       <div style={{ flex: 1, height: 6, background: C.borderLight, borderRadius: 3, overflow: "hidden" }}>
         <div style={{
           width: `${score}%`, height: "100%", borderRadius: 3,
-          background: score > 80 ? `linear-gradient(90deg, ${C.saffron}, #B45309)` : score > 60 ? C.saffron : C.textMuted,
+          background: score >= 90 ? `linear-gradient(90deg, #B45309, ${C.dataWarm})` : score > 80 ? `linear-gradient(90deg, ${C.saffron}, #B45309)` : score > 60 ? C.saffron : C.textMuted,
           transition: "width 0.6s ease"
         }} />
       </div>
@@ -738,9 +743,12 @@ export default function IndianAmericanVoterAtlas() {
               2026 Election Cycle
             </span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600 }}>
+          <p style={{ margin: "6px 0 0", fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600, display: isMobile ? "none" : "block" }}>
             District-level political intelligence for the fastest-growing electorate in America
           </p>
+          <div style={{ fontSize: 10, fontFamily: font.mono, color: "rgba(255,255,255,0.4)", marginTop: 4, letterSpacing: 0.3 }}>
+            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, Cook Political Report
+          </div>
         </div>
       </header>
 
@@ -834,7 +842,10 @@ export default function IndianAmericanVoterAtlas() {
               <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
                 {mapColorMode === "density" && <>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#B45309", display: "inline-block" }} /> 80+
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.dataWarm, display: "inline-block" }} /> 90+
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#B45309", display: "inline-block" }} /> 80–89
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
                     <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.saffron, display: "inline-block" }} /> 60–79
@@ -1126,7 +1137,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Presidential vote trend chart */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Indian American Presidential Vote (2004–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 20px" }}>Sources: NAAS (2004–2016), Carnegie IAAS (2020, 2024)</p>
@@ -1171,7 +1182,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Gender & Age breakdown */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>The Gender-Age Divide: Where the Shift Happened</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: Carnegie IAAS 2024 · Shift = change in Trump support from 2020</p>
@@ -1187,10 +1198,10 @@ export default function IndianAmericanVoterAtlas() {
                           </div>
                           <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden" }}>
                             <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
                             </div>
                             <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
                             </div>
                             <div style={{ flex: 1, background: C.borderLight }} />
                           </div>
@@ -1200,10 +1211,10 @@ export default function IndianAmericanVoterAtlas() {
                           <div style={{ width: 120, fontWeight: 600, fontSize: 13, color: C.text }}>{g.group}</div>
                           <div style={{ flex: 1, display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
                             <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
                             </div>
                             <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
                             </div>
                             <div style={{ flex: 1, background: C.borderLight }} />
                           </div>
@@ -1225,11 +1236,11 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Trump Approval Among Indian Americans */}
-            <Card style={{ marginBottom: 24, borderLeft: `4px solid #7C3AED` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}`, borderLeft: `4px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                   <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>IAAS 2026: Trump Approval Among Indian Americans</h3>
-                  <Badge color="#7C3AED" bg="#EDE9FE">NEW DATA</Badge>
+                  <Badge color="#FFFFFF" bg={C.royalBlue}>NEW DATA</Badge>
                 </div>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>
                   Carnegie Endowment IAAS 2026 (n=1,000, ±3.6%, fielded Nov 25 2025–Jan 6 2026). Note that these are approval ratings, not vote share.
@@ -1294,12 +1305,12 @@ export default function IndianAmericanVoterAtlas() {
                 <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12 }}>
                   <div style={{ flex: 1, padding: "14px 16px", background: C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>Overall</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: "#7C3AED", lineHeight: 1 }}>29% approve</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.royalBlue, lineHeight: 1 }}>29% approve</div>
                     <div style={{ fontSize: 12, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>55% strongly disapprove</div>
                   </div>
                   <div style={{ flex: 1, padding: "14px 16px", background: C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.borderLight}` }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: C.textMuted, fontFamily: font.mono, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6 }}>US-India Relations</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: "#7C3AED", lineHeight: 1 }}>Only 20% approve</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.royalBlue, lineHeight: 1 }}>Only 20% approve</div>
                     <div style={{ fontSize: 12, color: C.textSecondary, fontFamily: font.body, marginTop: 4 }}>Trump's handling — down from 48% who approved Biden's in 2024</div>
                   </div>
                 </div>
@@ -1317,13 +1328,13 @@ export default function IndianAmericanVoterAtlas() {
                       <div style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, marginBottom: 4 }}>{p.year}</div>
                       <div style={{ display: "flex", height: 28, borderRadius: 6, overflow: "hidden", gap: 2 }}>
                         <div style={{ width: `${p.dem}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>D {p.dem}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>D {p.dem}%</span>
                         </div>
                         <div style={{ width: `${p.gop}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>R {p.gop}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>R {p.gop}%</span>
                         </div>
                         <div style={{ width: `${p.ind}%`, background: "#8B5CF6", opacity: 0.6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>I {p.ind}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>I {p.ind}%</span>
                         </div>
                       </div>
                     </div>
@@ -1357,7 +1368,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Precinct-Level Swings */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Precinct-Level Swings in Indian American Enclaves</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Sources: County clerk certified results, Catalist, Diya TV, precinct-level analysis (Cornell Law / Siddharth Khurana)</p>
@@ -1448,7 +1459,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* FBI trend */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>FBI Reported Incidents by Bias Category (2015–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: FBI UCR/NIBRS · Anti-Sikh tracking began 2015</p>
@@ -1822,7 +1833,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Editorial framing */}
-            <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.saffron}` }}>
+            <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.dataWarm}` }}>
               <div style={{ padding: "14px 18px", fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
                 <strong style={{ color: C.navy }}>Reading this data:</strong> A PERM certification is Step 1 of the employment-based green card process — it means the Department of Labor certified that no qualified U.S. worker was available for the position. It does <em>not</em> mean a green card was issued. Many certified PERMs never result in a green card due to visa backlogs, employer withdrawal, or applicant departure. These numbers measure <strong style={{ color: C.text }}>employer demand for skilled immigrant labor</strong> and serve as a proxy for where Indian American economic roots are deepening — not immigration volume.
               </div>
