@@ -589,6 +589,35 @@ function PersuasionBar({ score }) {
   );
 }
 
+const InfoTip = ({ text }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: "relative", display: "inline-block", marginLeft: 4, cursor: "help" }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onClick={(e) => { e.stopPropagation(); setShow(!show); }}
+    >
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700,
+        fontFamily: font.mono, background: C.borderLight, color: C.textMuted,
+        lineHeight: 1, userSelect: "none",
+      }}>i</span>
+      {show && (
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          width: 220, padding: "8px 10px", borderRadius: 6,
+          background: C.navy, color: "#fff", fontSize: 11, fontFamily: font.body,
+          fontWeight: 400, lineHeight: 1.4, zIndex: 200,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)", pointerEvents: "none",
+          textTransform: "none", letterSpacing: 0,
+        }}>{text}</span>
+      )}
+    </span>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
@@ -940,7 +969,7 @@ export default function IndianAmericanVoterAtlas() {
                 textTransform: "uppercase", letterSpacing: 1,
               }}>
                 <div>District</div><div>Representative</div><div style={{ textAlign: "right" }}>Indian %</div>
-                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div>Density</div><div>Persuasion</div>
+                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
               </div>
 
               {sortedDistricts.map((d, i) => (
@@ -1008,11 +1037,11 @@ export default function IndianAmericanVoterAtlas() {
                       {/* Row 3: Bars side by side */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density</div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div>
                           <DensityBar score={d.densityScore} />
                         </div>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion</div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
                           <PersuasionBar score={d.persuasionScore} />
                         </div>
                       </div>
