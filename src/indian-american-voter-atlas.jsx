@@ -743,9 +743,12 @@ export default function IndianAmericanVoterAtlas() {
               2026 Election Cycle
             </span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600 }}>
+          <p style={{ margin: "6px 0 0", fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: font.body, maxWidth: 600, display: isMobile ? "none" : "block" }}>
             District-level political intelligence for the fastest-growing electorate in America
           </p>
+          <div style={{ fontSize: 10, fontFamily: font.mono, color: "rgba(255,255,255,0.4)", marginTop: 4, letterSpacing: 0.3 }}>
+            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, Cook Political Report
+          </div>
         </div>
       </header>
 
@@ -1134,7 +1137,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Presidential vote trend chart */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Indian American Presidential Vote (2004–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 20px" }}>Sources: NAAS (2004–2016), Carnegie IAAS (2020, 2024)</p>
@@ -1179,7 +1182,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Gender & Age breakdown */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>The Gender-Age Divide: Where the Shift Happened</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: Carnegie IAAS 2024 · Shift = change in Trump support from 2020</p>
@@ -1195,10 +1198,10 @@ export default function IndianAmericanVoterAtlas() {
                           </div>
                           <div style={{ display: "flex", height: 20, borderRadius: 4, overflow: "hidden" }}>
                             <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
                             </div>
                             <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                              <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
                             </div>
                             <div style={{ flex: 1, background: C.borderLight }} />
                           </div>
@@ -1208,10 +1211,10 @@ export default function IndianAmericanVoterAtlas() {
                           <div style={{ width: 120, fontWeight: 600, fontSize: 13, color: C.text }}>{g.group}</div>
                           <div style={{ flex: 1, display: "flex", height: 22, borderRadius: 4, overflow: "hidden" }}>
                             <div style={{ width: `${g.harris}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.harris}%</span>
                             </div>
                             <div style={{ width: `${g.trump}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>{g.trump}%</span>
                             </div>
                             <div style={{ flex: 1, background: C.borderLight }} />
                           </div>
@@ -1233,7 +1236,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* Trump Approval Among Indian Americans */}
-            <Card style={{ marginBottom: 24, borderLeft: `4px solid ${C.royalBlue}` }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}`, borderLeft: `4px solid ${C.royalBlue}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                   <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>IAAS 2026: Trump Approval Among Indian Americans</h3>
@@ -1325,13 +1328,13 @@ export default function IndianAmericanVoterAtlas() {
                       <div style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, marginBottom: 4 }}>{p.year}</div>
                       <div style={{ display: "flex", height: 28, borderRadius: 6, overflow: "hidden", gap: 2 }}>
                         <div style={{ width: `${p.dem}%`, background: C.dem, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>D {p.dem}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>D {p.dem}%</span>
                         </div>
                         <div style={{ width: `${p.gop}%`, background: C.gop, opacity: 0.8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>R {p.gop}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>R {p.gop}%</span>
                         </div>
                         <div style={{ width: `${p.ind}%`, background: "#8B5CF6", opacity: 0.6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: font.mono }}>I {p.ind}%</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontFamily: font.mono }}>I {p.ind}%</span>
                         </div>
                       </div>
                     </div>
@@ -1365,7 +1368,7 @@ export default function IndianAmericanVoterAtlas() {
             </div>
 
             {/* Precinct-Level Swings */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>Precinct-Level Swings in Indian American Enclaves</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Sources: County clerk certified results, Catalist, Diya TV, precinct-level analysis (Cornell Law / Siddharth Khurana)</p>
@@ -1456,7 +1459,7 @@ export default function IndianAmericanVoterAtlas() {
             </Card>
 
             {/* FBI trend */}
-            <Card style={{ marginBottom: 24 }}>
+            <Card style={{ marginBottom: 24, borderTop: `3px solid ${C.navy}` }}>
               <div style={{ padding: "20px 24px" }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, fontFamily: font.display, margin: "0 0 4px", color: C.navy }}>FBI Reported Incidents by Bias Category (2015–2024)</h3>
                 <p style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, margin: "0 0 16px" }}>Source: FBI UCR/NIBRS · Anti-Sikh tracking began 2015</p>
