@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-const CONTACT_EMAIL = "anang+voteratlas@gmail.com";
+const CONTACT_EMAIL = "anangbhai+voteratlas@gmail.com";
 
 // ═══════════════════════════════════════════════════════════
 // SUPABASE
@@ -589,6 +589,48 @@ function PersuasionBar({ score }) {
   );
 }
 
+const InfoTip = ({ text }) => {
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const show = pinned || hovered;
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!pinned) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setPinned(false);
+    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
+  }, [pinned]);
+  return (
+    <span
+      ref={ref}
+      style={{ position: "relative", display: "inline-block", marginLeft: 4, cursor: "pointer" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={(e) => { e.stopPropagation(); setPinned(!pinned); }}
+    >
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700,
+        fontFamily: font.mono, background: pinned || hovered ? C.navy : C.borderLight,
+        color: pinned || hovered ? "#fff" : C.textMuted,
+        lineHeight: 1, userSelect: "none", transition: "all 0.15s ease",
+      }}>i</span>
+      {show && (
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
+          width: 220, padding: "8px 10px", borderRadius: 6,
+          background: C.navy, color: "#fff", fontSize: 11, fontFamily: font.body,
+          fontWeight: 400, lineHeight: 1.4, zIndex: 200,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          textTransform: "none", letterSpacing: 0,
+        }}>{text}</span>
+      )}
+    </span>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
@@ -809,7 +851,7 @@ export default function IndianAmericanVoterAtlas() {
 
             <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: C.textMuted }}>
               <span><span style={{ color: C.saffronText, fontWeight: 700, fontFamily: font.mono }}>IA</span> = Indian American member</span>
-              <span><span style={{ color: C.positive, fontWeight: 700 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, etc.)</span>
+              <span><span style={{ color: "#2D8A4E", fontSize: 14, fontWeight: 700, textShadow: "0 0 4px rgba(45,138,78,0.3)" }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)</span>
             </div>
 
             {/* MAP */}
@@ -940,7 +982,10 @@ export default function IndianAmericanVoterAtlas() {
                 textTransform: "uppercase", letterSpacing: 1,
               }}>
                 <div>District</div><div>Representative</div><div style={{ textAlign: "right" }}>Indian %</div>
-                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div>Density</div><div>Persuasion</div>
+                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
+              </div>
+              <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "6px 16px", marginBottom: 0 }}>
+                <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
               </div>
 
               {sortedDistricts.map((d, i) => (
@@ -959,7 +1004,7 @@ export default function IndianAmericanVoterAtlas() {
                     <div>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{d.rep}</span>
                       {d.indianRep && <span style={{ marginLeft: 6, fontSize: 9, color: C.saffronText, fontWeight: 700, fontFamily: font.mono }}>IA</span>}
-                      {d.strategic && <span style={{ marginLeft: 6, fontSize: 9, color: C.positive, fontWeight: 700, fontFamily: font.mono }}>★</span>}
+                      {d.strategic && <span title="Included for strategic relevance (committee chair, India Caucus, etc.)" style={{ marginLeft: 6, fontSize: 16, color: "#2D8A4E", fontWeight: 700, fontFamily: font.mono, textShadow: "0 0 4px rgba(45,138,78,0.3)" }}>★</span>}
                     </div>
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontWeight: 600, fontSize: 13, color: d.indianPct > 6 ? C.saffronText : C.text }}>{d.indianPct}%</div>
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontSize: 12, color: C.textSecondary }}>{(d.indianPop / 1000).toFixed(0)}K</div>
@@ -981,6 +1026,9 @@ export default function IndianAmericanVoterAtlas() {
               {/* Mobile cards */}
               {isMobile && (
                 <div style={{ display: "grid", gap: 0 }}>
+                  <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "8px 12px", marginBottom: 0 }}>
+                    <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
+                  </div>
                   {sortedDistricts.map((d, i) => (
                     <div key={d.id} onClick={() => setExpandedRow(expandedRow === d.id ? null : d.id)}
                       style={{
@@ -994,7 +1042,7 @@ export default function IndianAmericanVoterAtlas() {
                           <span style={{ fontFamily: font.mono, fontWeight: 700, fontSize: 15, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</span>
                           <span style={{ fontWeight: 600, fontSize: 13, color: C.text }}>{d.rep}</span>
                           {d.indianRep && <span style={{ fontSize: 9, color: C.saffronText, fontWeight: 700, fontFamily: font.mono }}>IA</span>}
-                          {d.strategic && <span style={{ fontSize: 9, color: C.positive, fontWeight: 700 }}>★</span>}
+                          {d.strategic && <span title="Included for strategic relevance (committee chair, India Caucus, etc.)" style={{ fontSize: 14, color: "#2D8A4E", fontWeight: 700, textShadow: "0 0 4px rgba(45,138,78,0.3)" }}>★</span>}
                         </div>
                         <Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge>
                       </div>
@@ -1008,11 +1056,11 @@ export default function IndianAmericanVoterAtlas() {
                       {/* Row 3: Bars side by side */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density</div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<InfoTip text="Composite index (0–100) measuring Indian American civic presence: census population, FEC donor density, cultural businesses, Google Trends signals, and H-1B/PERM data." /></div>
                           <DensityBar score={d.densityScore} />
                         </div>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion</div>
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<InfoTip text="How moveable is the Indian American vote here (0–100): district competitiveness, 2020→2024 swing, independent ID rate, population size, and bounceback evidence." /></div>
                           <PersuasionBar score={d.persuasionScore} />
                         </div>
                       </div>
