@@ -458,7 +458,7 @@ function CtrlScrollZoom() {
     };
     container.addEventListener("wheel", handler, { passive: false });
     return () => container.removeEventListener("wheel", handler);
-  }, [map]);
+  }, []);
   return null;
 }
 
