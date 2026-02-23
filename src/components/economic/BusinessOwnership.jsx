@@ -36,8 +36,6 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
   const sba = data.sba || [];
 
   const absRow = abs.length > 0 ? abs[0] : null;
-
-  // ABS data — asianOwnedFirms is the real column
   const firmCount = absRow?.asianOwnedFirms || 0;
 
   // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount
@@ -54,7 +52,7 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
     return total;
   }, [sba]);
 
-  const hasAnyData = absRow || sba.length > 0;
+  const hasAnyData = sba.length > 0 || absRow;
 
   if (!hasAnyData) {
     return (
@@ -79,35 +77,60 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
         </h3>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+      {/* Hero callout — SBA surname-based (primary) */}
+      {sba.length > 0 && (
+        <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.saffron}` }}>
+          <div style={{ padding: "16px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <SourceBadge type="surname" label="SBA — Indian surname estimate" />
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
+              {sbaTotal.totalLoans.toLocaleString()} SBA loans
+            </div>
+            <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
+              {fmtDollar(sbaTotal.totalAmount)} in total SBA capital
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
         <StatCard
-          label="Asian-Owned Employer Firms"
-          badge={<SourceBadge type="exact" label="Census ABS 2023" />}
-          value={firmCount.toLocaleString()}
-          note="All Asian ethnicities — ABS does not break out Asian Indian separately"
+          label="7(a) Program Loans"
+          badge={<SourceBadge type="surname" />}
+          value={sbaTotal.loans7a.toLocaleString()}
+          note={`${fmtDollar(sbaTotal.amount7a)} in approved capital`}
         />
 
         <StatCard
-          label="Total SBA Loans"
+          label="504 Program Loans"
           badge={<SourceBadge type="surname" />}
-          value={sbaTotal.totalLoans.toLocaleString()}
-          note={`7(a): ${sbaTotal.loans7a.toLocaleString()} · 504: ${sbaTotal.loans504.toLocaleString()}`}
-        />
-
-        <StatCard
-          label="Total SBA Capital"
-          badge={<SourceBadge type="surname" />}
-          value={fmtDollar(sbaTotal.totalAmount)}
-          note="Floor estimate — surname-on-business-name undercounts"
+          value={sbaTotal.loans504.toLocaleString()}
+          note={`${fmtDollar(sbaTotal.amount504)} in approved capital`}
         />
       </div>
 
+      {/* ABS context — de-emphasized, broader Asian category */}
+      {firmCount > 0 && (
+        <Card style={{ marginBottom: 16, opacity: 0.75 }}>
+          <div style={{ padding: "12px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <SourceBadge type="exact" label="Census ABS 2023" />
+            </div>
+            <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>
+              For context: <strong style={{ color: C.navy }}>{firmCount.toLocaleString()}</strong> Asian-owned employer firms nationally (Census ABS — all Asian ethnicities, not Indian-specific).
+              Indian Americans are estimated to own 20–25% of Asian-owned businesses based on population share.
+            </div>
+          </div>
+        </Card>
+      )}
+
       <MethodologyNote>
-        Two methodologies with different precision levels are combined here.
-        ABS uses exact federal race classification but reports "Asian" as a single category — Asian Indian
-        is not broken out separately. SBA uses surname analysis on business names, which significantly
-        undercounts firms where the business name does not contain the owner's surname.
-        Treat SBA figures as minimums.
+        SBA loan data uses Indian surname analysis on business owner names following
+        Ramakrishnan et al. (AAPI Data) methodology. This significantly undercounts
+        firms where the business name does not contain the owner's surname.
+        Treat SBA figures as floor estimates. ABS data uses Census race classification
+        but only reports "Asian" as a single category — Asian Indian is not broken out.
       </MethodologyNote>
     </div>
   );

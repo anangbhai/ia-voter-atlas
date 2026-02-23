@@ -33,7 +33,7 @@ const SUB_SECTIONS = [
 
 // ─── Executive Summary ──────────────────────────────────────
 function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate }) {
-  const { uscis, hmda, abs, sba, grants, fec } = economicData;
+  const { uscis, hmda, sba, grants, fec } = economicData;
 
   // PERM stats
   const permStats = useMemo(() => {
@@ -82,12 +82,6 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
     };
   }, [hmda]);
 
-  // ABS firms
-  const firmCount = useMemo(() => {
-    if (!abs || abs.length === 0) return 0;
-    return abs.reduce((s, r) => s + (r.asianOwnedFirms || 0), 0);
-  }, [abs]);
-
   // SBA
   const sbaStats = useMemo(() => {
     if (!sba || sba.length === 0) return null;
@@ -99,12 +93,18 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
     return { loans, amount };
   }, [sba]);
 
-  // NIH grants
-  const nihStats = useMemo(() => {
+  // Research grants — NIH + NSF combined
+  const grantStats = useMemo(() => {
     if (!grants || grants.length === 0) return null;
-    const awards = grants.reduce((s, r) => s + (r.nihMatchedAwards || 0), 0);
-    const amount = grants.reduce((s, r) => s + (r.nihMatchedAmount || 0), 0);
-    return { awards, amount };
+    const nihAwards = grants.reduce((s, r) => s + (r.nihMatchedAwards || 0), 0);
+    const nihAmount = grants.reduce((s, r) => s + (r.nihMatchedAmount || 0), 0);
+    const nsfAwards = grants.reduce((s, r) => s + (r.nsfMatchedAwards || 0), 0);
+    const nsfAmount = grants.reduce((s, r) => s + (r.nsfMatchedAmount || 0), 0);
+    return {
+      totalAwards: nihAwards + nsfAwards,
+      totalAmount: nihAmount + nsfAmount,
+      nihAwards, nihAmount, nsfAwards, nsfAmount,
+    };
   }, [grants]);
 
   // FEC
@@ -185,15 +185,8 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
           sectionKey="business"
           icon={"\uD83C\uDFED"}
           title="Business Ownership"
-          stat={
-            firmCount > 0
-              ? `${firmCount.toLocaleString()} Asian-owned employer firms`
-              : sbaStats ? `${sbaStats.loans.toLocaleString()} SBA loans` : "—"
-          }
-          detail={[
-            firmCount > 0 ? "Census ABS — all Asian ethnicities" : null,
-            sbaStats ? `${sbaStats.loans.toLocaleString()} SBA loans totaling ${fmtDollar(sbaStats.amount)} (surname estimate)` : null,
-          ].filter(Boolean).join(". ") || "Data loading..."}
+          stat={sbaStats ? `${sbaStats.loans.toLocaleString()} SBA loans` : "—"}
+          detail={sbaStats ? `${fmtDollar(sbaStats.amount)} in SBA capital (Indian surname estimate)` : "Data loading..."}
         />
 
         {/* Scientific Research */}
@@ -201,8 +194,8 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
           sectionKey="research"
           icon={"\uD83D\uDD2C"}
           title="Scientific Research"
-          stat={nihStats ? `${nihStats.awards.toLocaleString()} NIH-funded investigators` : "—"}
-          detail={nihStats ? `${fmtDollar(nihStats.amount)} in total NIH research funding (surname estimate)` : "Data loading..."}
+          stat={grantStats ? `${grantStats.totalAwards.toLocaleString()} NIH + NSF awards` : "—"}
+          detail={grantStats ? `${fmtDollar(grantStats.totalAmount)} in total research funding (${grantStats.nihAwards.toLocaleString()} NIH + ${grantStats.nsfAwards.toLocaleString()} NSF, surname estimate)` : "Data loading..."}
         />
 
         {/* Political Economy */}
