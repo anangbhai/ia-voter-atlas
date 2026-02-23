@@ -94,7 +94,7 @@ export function ResearchInnovation({ data, isMobile }) {
                 <SourceBadge type="surname" label="Surname estimate — NIH Reporter + NSF Awards" />
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
-                {totals.totalAwards.toLocaleString()} South Asian PI awards
+                {totals.totalAwards.toLocaleString()} Indian-origin PI awards
               </div>
               <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
                 {totals.nihAwards.toLocaleString()} NIH + {totals.nsfAwards.toLocaleString()} NSF
