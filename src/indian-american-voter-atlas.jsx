@@ -1951,6 +1951,33 @@ export default function IndianAmericanVoterAtlas() {
               </div>
             </Card>
 
+            {/* Economic Presence Methodology */}
+            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>Economic Presence — Data Sources & Methodology</h3>
+            {[
+              { title: "Immigration & Economy", text: "USCIS Yearbook of Immigration Statistics, Tables 3 and 21d (2001\u20132023). No filtering applied \u2014 USCIS tabulates by country of birth as recorded on I-485 and N-400 forms. Department of Labor PERM Disclosure Data (FY2008\u2013FY2024), parsed by fiscal year and mapped to congressional districts. Census ACS income, poverty, labor force, and educational attainment data." },
+              { title: "Mortgage & Wealth (HMDA)", text: "CFPB Home Mortgage Disclosure Act (HMDA) data, 2018\u20132024, filtered to race code 21 (Asian Indian) using exact federal classification. Most methodologically precise economic signal in the dataset \u2014 race coding is borrower-reported and federally standardized." },
+              { title: "Business Ownership (ACS/ABS/SBA)", text: "Census Annual Business Survey (ABS) 2023, exact Asian Indian race classification. SBA 7(a) and 504 loan FOIA data, filtered using South Asian surname analysis on business names (floor estimate; surname-on-business-name significantly undercounts). Surname methodology: Ramakrishnan et al. (AAPI Data); false positive rate ~8\u201312%." },
+              { title: "Research & Innovation (NIH)", text: "NIH Reporter API (FY2008\u20132023), PI last names filtered using South Asian surname analysis. NIH does not collect PI race/ethnicity in public data. NSF integration pending." },
+              { title: "Electoral & Political Economy (FEC)", text: "FEC individual contribution data (2008\u20132024), 9 election cycles, South Asian surname analysis. FEC covers contributions >$200 only." },
+            ].map((sec, i) => (
+              <Card key={i} style={{ marginBottom: 10 }}>
+                <div style={{ padding: "14px 18px" }}>
+                  <h4 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>{sec.title}</h4>
+                  <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.7, fontFamily: font.body }}>{sec.text}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Known Limitations */}
+            <Card style={{ marginBottom: 24, marginTop: 16, borderLeft: `4px solid ${C.saffron}`, borderColor: C.border, borderLeftColor: C.saffron }}>
+              <div style={{ padding: "16px 20px" }}>
+                <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Known Limitations</h4>
+                <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.7, fontFamily: font.body }}>
+                  HMDA race coding relies on borrower self-identification and lender observation; some mixed-race borrowers may be coded differently across applications. HMDA excludes cash purchases and private loans. SBA surname filtering on business names significantly undercounts Indian-owned firms where the business name does not contain the owner's surname — treat SBA figures as minimums. NIH surname analysis will undercount researchers who publish or register under anglicized or married names.
+                </p>
+              </div>
+            </Card>
+
             {/* Data sources */}
             <Card style={{ marginTop: 24 }}>
               <div style={{ padding: "18px 22px" }}>
