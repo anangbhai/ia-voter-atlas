@@ -15,6 +15,16 @@ function mapDistrict(row) {
   // cook2026 came from cook_2026 → cook2026 ✓
   // cookPvi needs to be cookPVI
   if (d.cookPvi !== undefined) { d.cookPVI = d.cookPvi; delete d.cookPvi; }
+  // GA-07 was redrawn in 2023 (Gwinnett→North Fulton/Hall Co.). Supabase still has
+  // pre-redistricting boundary data, so override all affected fields.
+  if (d.id === "GA-07") {
+    Object.assign(d, {
+      rep: "Rich McCormick", party: "R", cook2026: "Solid R", cookPVI: "R+11",
+      harris2024: 41, biden2020: 40, persuasionScore: 32,
+      metro: "North Atlanta Suburbs",
+      notes: "North Fulton/Hall Co. — Alpharetta, Johns Creek, Milton, Roswell (redrawn 2023)",
+    });
+  }
   return d;
 }
 function mapSenate(row) {
