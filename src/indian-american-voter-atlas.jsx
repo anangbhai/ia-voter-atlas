@@ -233,7 +233,7 @@ const NARRATIVE_ITEMS = [
 
 const DENSITY_METHODS = [
   { name: "Census ACS Data", weight: 40, description: "Asian Indian alone population from ACS 5-Year Estimates (Table B02015), mapped to 119th congressional districts.", icon: "📊" },
-  { name: "FEC Donor Surname Analysis", weight: 20, description: "FEC individual contribution data filtered using validated South Asian surname lists (methodology from AAPI Data/Karthick Ramakrishnan).", icon: "💰" },
+  { name: "FEC Donor Surname Analysis", weight: 20, description: "FEC individual contribution data filtered using validated Indian surname lists (methodology from AAPI Data/Karthick Ramakrishnan).", icon: "💰" },
   { name: "Cultural Business Density", weight: 20, description: "Google Places API density of Indian restaurants, grocery stores, temples/gurdwaras, and cultural centers per capita.", icon: "🏪" },
   { name: "Google Trends Proxy", weight: 15, description: "DMA-level search interest for terms like 'Diwali', 'Indian grocery', 'H-1B visa', 'cricket score'.", icon: "🔍" },
   { name: "USCIS H-1B & DOL PERM Data", weight: 5, description: "H-1B employer location data and DOL PERM labor certification volumes (FY2008–FY2024) as proxies for recent immigration clusters and employer-sponsored green card demand not yet captured by census.", icon: "📋" },
@@ -1128,7 +1128,7 @@ export default function IndianAmericanVoterAtlas() {
                           {race.notes}
                           {hasFec && (
                             <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.borderLight}`, fontSize: 12 }}>
-                              <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>South Asian donor contributions: </span>
+                              <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Indian American donor contributions: </span>
                               {[
                                 fec2020 && { year: "2020", amt: fec2020.totalContributions },
                                 fec2022 && { year: "2022", amt: fec2022.totalContributions },
@@ -1956,9 +1956,9 @@ export default function IndianAmericanVoterAtlas() {
             {[
               { title: "Immigration & Economy", text: "USCIS Yearbook of Immigration Statistics, Tables 3 and 21d (2001\u20132023). No filtering applied \u2014 USCIS tabulates by country of birth as recorded on I-485 and N-400 forms. Department of Labor PERM Disclosure Data (FY2008\u2013FY2024), parsed by fiscal year and mapped to congressional districts. Census ACS income, poverty, labor force, and educational attainment data." },
               { title: "Mortgage & Wealth (HMDA)", text: "CFPB Home Mortgage Disclosure Act (HMDA) data, 2018\u20132024, filtered to race code 21 (Asian Indian) using exact federal classification. Most methodologically precise economic signal in the dataset \u2014 race coding is borrower-reported and federally standardized." },
-              { title: "Business Ownership (ACS/ABS/SBA)", text: "Census Annual Business Survey (ABS) 2023, exact Asian Indian race classification. SBA 7(a) and 504 loan FOIA data, filtered using South Asian surname analysis on business names (floor estimate; surname-on-business-name significantly undercounts). Surname methodology: Ramakrishnan et al. (AAPI Data); false positive rate ~8\u201312%." },
-              { title: "Research & Innovation (NIH)", text: "NIH Reporter API (FY2008\u20132023), PI last names filtered using South Asian surname analysis. NIH does not collect PI race/ethnicity in public data. NSF integration pending." },
-              { title: "Electoral & Political Economy (FEC)", text: "FEC individual contribution data (2008\u20132024), 9 election cycles, South Asian surname analysis. FEC covers contributions >$200 only." },
+              { title: "Business Ownership (ABS/SBA)", text: "Census Annual Business Survey (ABS) 2023 — reports \"Asian\" as a single category, not Asian Indian separately. SBA 7(a) and 504 loan FOIA data, filtered using Indian surname analysis on business names (floor estimate; surname-on-business-name significantly undercounts). Surname methodology: Ramakrishnan et al. (AAPI Data); false positive rate ~8\u201312%." },
+              { title: "Scientific Research (NIH)", text: "NIH Reporter API (FY2008\u20132023), PI last names filtered using Indian surname analysis. NIH does not collect PI race/ethnicity in public data. NSF integration pending." },
+              { title: "Electoral & Political Economy (FEC)", text: "FEC individual contribution data (2008\u20132024), 9 election cycles, Indian surname analysis. FEC covers contributions >$200 only." },
             ].map((sec, i) => (
               <Card key={i} style={{ marginBottom: 10 }}>
                 <div style={{ padding: "14px 18px" }}>

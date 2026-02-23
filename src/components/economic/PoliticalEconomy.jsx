@@ -112,7 +112,7 @@ export function PoliticalEconomy({ data, isMobile }) {
       .slice(0, 3);
     if (totalAll === 0 || topDistricts.length === 0) return null;
     const topList = topDistricts.map(d => `${d.geographyId} (${fmtDollar(d.totalContributions)})`).join(", ");
-    return `In 2024, South Asian donors contributed an estimated ${fmtDollar(totalAll)} across tracked geographies, led by ${topList}. Presidential cycles average 3\u20134\u00D7 midterm contribution volumes.`;
+    return `In 2024, Indian American donors contributed an estimated ${fmtDollar(totalAll)} across tracked geographies, led by ${topList}. Presidential cycles average 3\u20134\u00D7 midterm contribution volumes.`;
   }, [fec]);
 
   // Compute all-time total for headline
@@ -379,7 +379,7 @@ export function PoliticalEconomy({ data, isMobile }) {
       )}
 
       <MethodologyNote>
-        South Asian surname filtering of FEC individual contributions data. Surname list (~150 high-precision names)
+        Indian surname filtering of FEC individual contributions data. Surname list (~150 high-precision names)
         derived from Census 2010 frequently occurring surnames, validated against community lists following
         Ramakrishnan et al. (AAPI Data) methodology. False positive rate ~8–12%; misses Indian Americans
         with non-South-Asian surnames. All figures are estimates. FEC data covers contributions &gt;$200 only —

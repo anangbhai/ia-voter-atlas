@@ -67,13 +67,13 @@ export function ResearchInnovation({ data, isMobile }) {
           <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.saffron}` }}>
             <div style={{ padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-                <SourceBadge type="surname" label="NIH Reporter API — Surname estimate" />
+                <SourceBadge type="surname" label="NIH Reporter API — Indian surname estimate" />
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
                 {totalAwards.toLocaleString()}
               </div>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.textSecondary, marginTop: 2 }}>
-                South Asian principal investigators funded by NIH{yearRange ? ` since ${grantsByYear[0].year}` : ""}
+                Indian American principal investigators funded by NIH{yearRange ? ` since ${grantsByYear[0].year}` : ""}
               </div>
               <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 8 }}>
                 {fmtDollar(totalAmount)} in total research funding
@@ -125,9 +125,9 @@ export function ResearchInnovation({ data, isMobile }) {
           )}
 
           <MethodologyNote>
-            Surname analysis on PI last names following Ramakrishnan et al. (AAPI Data) methodology.
+            Indian surname analysis on PI last names following Ramakrishnan et al. (AAPI Data) methodology.
             NIH does not collect PI race/ethnicity in public data. Underestimates Indian American
-            researchers with non-South-Asian surnames.
+            researchers with non-Indian surnames.
           </MethodologyNote>
         </>
       )}
