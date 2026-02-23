@@ -33,7 +33,7 @@ const SUB_SECTIONS = [
 
 // ─── Executive Summary ──────────────────────────────────────
 function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate }) {
-  const { uscis, hmda, acs, abs, sba, grants, fec } = economicData;
+  const { uscis, hmda, abs, sba, grants, fec } = economicData;
 
   // PERM stats
   const permStats = useMemo(() => {
@@ -82,17 +82,6 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
       districtCount: districts.size,
     };
   }, [hmda]);
-
-  // ACS homeownership
-  const homeownership = useMemo(() => {
-    if (!acs || acs.length === 0) return null;
-    let rateSum = 0, rateCount = 0, units = 0;
-    acs.forEach(r => {
-      if (r.asianHomeownershipRate != null) { rateSum += r.asianHomeownershipRate; rateCount++; }
-      if (r.ownerOccupiedAsianHouseholder) units += r.ownerOccupiedAsianHouseholder;
-    });
-    return { rate: rateCount > 0 ? rateSum / rateCount : null, units };
-  }, [acs]);
 
   // ABS firms
   const firmCount = useMemo(() => {
@@ -188,15 +177,8 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
           sectionKey="wealth"
           icon={"\uD83C\uDFE0"}
           title="Household Wealth"
-          stat={
-            homeownership?.rate != null
-              ? `${(homeownership.rate * 100).toFixed(1)}% homeownership rate`
-              : hmdaStats ? `${hmdaStats.originations.toLocaleString()} mortgage originations` : "—"
-          }
-          detail={[
-            homeownership?.units > 0 ? `${homeownership.units.toLocaleString()} Asian owner-occupied units` : null,
-            hmdaStats ? `${hmdaStats.originations.toLocaleString()} mortgages tracked, avg ${fmtDollar(hmdaStats.avgLoan)} loan across ${hmdaStats.districtCount} districts` : null,
-          ].filter(Boolean).join(". ") || "Data loading..."}
+          stat={hmdaStats ? `${hmdaStats.originations.toLocaleString()} mortgage originations` : "—"}
+          detail={hmdaStats ? `Avg ${fmtDollar(hmdaStats.avgLoan)} loan amount across ${hmdaStats.districtCount} districts. HMDA race code 21 (Asian Indian), borrower self-reported.` : "Data loading..."}
         />
 
         {/* Business Ownership */}

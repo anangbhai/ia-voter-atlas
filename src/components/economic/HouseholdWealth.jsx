@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { C, font } from "../../lib/theme.js";
-import { StatCard } from "../shared/StatCard.jsx";
 import { SourceBadge } from "../shared/SourceBadge.jsx";
 import { MethodologyNote } from "../shared/MethodologyNote.jsx";
 
@@ -20,7 +19,6 @@ const fmtDollar = v => {
 
 export function HouseholdWealth({ data, districtId, isMobile }) {
   const hmda = data.hmda || [];
-  const acs = data.acs || [];
 
   // HMDA national summary — aggregate across all districts
   const hmdaSummary = useMemo(() => {
@@ -56,38 +54,9 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
     };
   }, [hmda]);
 
-  // ACS homeownership data — aggregate across rows
-  const homeownership = useMemo(() => {
-    if (acs.length === 0) return null;
-    // If filtered to one district, use first row; otherwise average across all
-    if (acs.length === 1) {
-      const r = acs[0];
-      return {
-        rate: r.asianHomeownershipRate,
-        units: r.ownerOccupiedAsianHouseholder,
-      };
-    }
-    // Multiple rows: compute weighted average or sum
-    let totalUnits = 0;
-    let rateSum = 0;
-    let rateCount = 0;
-    acs.forEach(r => {
-      if (r.ownerOccupiedAsianHouseholder) totalUnits += r.ownerOccupiedAsianHouseholder;
-      if (r.asianHomeownershipRate != null) {
-        rateSum += r.asianHomeownershipRate;
-        rateCount++;
-      }
-    });
-    return {
-      rate: rateCount > 0 ? rateSum / rateCount : null,
-      units: totalUnits,
-    };
-  }, [acs]);
-
   const hasHmda = hmdaSummary && hmdaSummary.totalOriginations > 0;
-  const hasHomeownership = homeownership && (homeownership.rate != null || homeownership.units > 0);
 
-  if (!hasHmda && !hasHomeownership) {
+  if (!hasHmda) {
     return (
       <Card>
         <div style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -96,8 +65,8 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
           </div>
           <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6, marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
             {districtId
-              ? `Household wealth data not available for ${districtId}.`
-              : "Household wealth data is not yet loaded."}
+              ? `HMDA mortgage data not available for ${districtId}. Coverage limited to 8 of 24 tracked districts.`
+              : "HMDA mortgage data is not yet loaded."}
           </div>
         </div>
       </Card>
@@ -112,73 +81,37 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
         </h3>
       </div>
 
-      {/* ACS Homeownership stats */}
-      {hasHomeownership && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
-              Homeownership
-            </h4>
-            <SourceBadge type="exact" label="Census ACS 2023" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-            {homeownership.rate != null && (
-              <StatCard
-                label="Asian Homeownership Rate"
-                value={`${(homeownership.rate * 100).toFixed(1)}%`}
-                sub="All Asian ethnicities — Census ACS"
-              />
-            )}
-            {homeownership.units > 0 && (
-              <StatCard
-                label="Owner-Occupied Units"
-                value={homeownership.units.toLocaleString()}
-                sub="Asian householders"
-              />
-            )}
-          </div>
-          <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8, fontStyle: "italic" }}>
-            Census ACS reports "Asian" as a single category — Asian Indian is not broken out separately.
-          </p>
+      {/* HMDA Summary */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <SourceBadge type="exact" label="HMDA Race Code 21 — Asian Indian" />
         </div>
-      )}
 
-      {/* HMDA National Summary */}
-      {hasHmda && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
-              Mortgage Activity
-            </h4>
-            <SourceBadge type="exact" />
-          </div>
-
-          {/* Hero callout */}
-          <Card style={{ marginBottom: 16, borderLeft: `4px solid ${C.royalBlue}` }}>
-            <div style={{ padding: "16px 20px" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, lineHeight: 1.6 }}>
-                {hmdaSummary.totalOriginations.toLocaleString()} mortgage originations tracked across {hmdaSummary.districtCount} districts, {hmdaSummary.yearRange}
-              </div>
-              <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
-                Average loan amount: <strong style={{ color: C.navy }}>{fmtDollar(hmdaSummary.avgLoanAmount)}</strong>
-              </div>
+        {/* Hero callout */}
+        <Card style={{ marginBottom: 16, borderLeft: `4px solid ${C.royalBlue}` }}>
+          <div style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, lineHeight: 1.6 }}>
+              {hmdaSummary.totalOriginations.toLocaleString()} mortgage originations tracked across {hmdaSummary.districtCount} districts, {hmdaSummary.yearRange}
             </div>
-          </Card>
+            <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
+              Average loan amount: <strong style={{ color: C.navy }}>{fmtDollar(hmdaSummary.avgLoanAmount)}</strong>
+            </div>
+          </div>
+        </Card>
 
-          <p style={{ fontSize: 11, color: C.textMuted, margin: "0 0 4px" }}>
-            CFPB Home Mortgage Disclosure Act (HMDA), {hmdaSummary.yearRange}. Exact count — HMDA race code 21 (Asian Indian), borrower self-reported.
-          </p>
-          <p style={{ fontSize: 11, color: C.textMuted, margin: 0 }}>
-            Coverage: {hmdaSummary.districtCount} of 24 tracked districts have sufficient HMDA volume for reliable estimates.
-          </p>
-        </div>
-      )}
+        <p style={{ fontSize: 11, color: C.textMuted, margin: "0 0 4px" }}>
+          CFPB Home Mortgage Disclosure Act (HMDA), {hmdaSummary.yearRange}. Exact count — HMDA race code 21 (Asian Indian), borrower self-reported.
+        </p>
+        <p style={{ fontSize: 11, color: C.textMuted, margin: 0 }}>
+          Coverage: {hmdaSummary.districtCount} of 24 tracked districts have sufficient HMDA volume for reliable estimates.
+        </p>
+      </div>
 
       <MethodologyNote>
-        Homeownership data from Census ACS uses federal race classification but groups all Asian
-        ethnicities together. HMDA data covers institutional lenders filing with CFPB — cash purchases
-        and private loans are excluded. Race coding is borrower-reported; mixed-race applicants may be
-        coded inconsistently.
+        HMDA data covers institutional lenders filing with CFPB — cash purchases
+        and private loans are excluded. Race coding is borrower-reported using HMDA
+        race code 21 (Asian Indian specifically, not all Asian). Mixed-race applicants
+        may be coded inconsistently.
       </MethodologyNote>
     </div>
   );
