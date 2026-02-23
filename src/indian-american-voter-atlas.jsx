@@ -527,7 +527,6 @@ export default function IndianAmericanVoterAtlas() {
   const [permDistrict, setPermDistrict] = useState("TX-22");
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
   const [permEmpYear, setPermEmpYear] = useState("");
-  const [methOpen, setMethOpen] = useState(null);
   const [activeInfoBox, setActiveInfoBox] = useState(null); // "density" | "persuasion" | null
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
@@ -1824,125 +1823,62 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The Economic Presence tab provides immigration pipeline data, household wealth indicators (HMDA), business ownership metrics (ACS/ABS/SBA), research &amp; innovation activity (NIH), and political contribution patterns (FEC) as independent economic signals.
+                Two proprietary indices power this dashboard. The Economic Presence tab provides immigration pipeline data, household wealth indicators (HMDA), business ownership metrics (ABS/SBA), scientific research activity (NIH), and political contribution patterns (FEC) as independent economic signals.
               </p>
             </div>
 
-            {/* COMMUNITY DENSITY INDEX — ACCORDION */}
-            <Card style={{ marginBottom: 12 }}>
-              <div
-                onClick={() => setMethOpen(methOpen === "density" ? null : "density")}
-                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index</h3>
-                    <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
-                    Where Indian Americans are civically and economically active — not just where they live. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement.
-                  </p>
+            {/* COMMUNITY DENSITY INDEX — FLAT */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index</h3>
+                  <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
                 </div>
-                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "density" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
-              </div>
-              {methOpen === "density" && (
-                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
-                  {DENSITY_METHODS.map((m, i) => (
-                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: C.saffronText, background: C.saffronBg, padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Where Indian Americans are civically and economically active — not just where they live. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement.
+                </p>
+                {DENSITY_METHODS.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: C.saffronText, background: C.saffronBg, padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
                       </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </Card>
 
-            {/* PERSUASION INDEX — ACCORDION */}
-            <Card style={{ marginBottom: 24 }}>
-              <div
-                onClick={() => setMethOpen(methOpen === "persuasion" ? null : "persuasion")}
-                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Indian American Persuasion Index</h3>
-                    <Badge color="#6D28D9" bg="#EDE9FE">0–100</Badge>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
-                    Where campaigns should spend money to move Indian American voters. A district can have 100K Indian Americans and score low if the seat is uncontested.
-                  </p>
+            {/* PERSUASION INDEX — FLAT */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Indian American Persuasion Index</h3>
+                  <Badge color="#6D28D9" bg="#EDE9FE">0–100</Badge>
                 </div>
-                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "persuasion" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
-              </div>
-              {methOpen === "persuasion" && (
-                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
-                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
-                    Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
-                  </p>
-                  {PERSUASION_METHODS.map((m, i) => (
-                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < PERSUASION_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9", background: "#EDE9FE", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                <p style={{ margin: "0 0 6px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Where campaigns should spend money to move Indian American voters. A district can have 100K Indian Americans and score low if the seat is uncontested.
+                </p>
+                <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+                  Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
+                </p>
+                {PERSUASION_METHODS.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < PERSUASION_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9", background: "#EDE9FE", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
                       </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </Card>
-
-            {/* RANKED DISTRICTS — SIDE BY SIDE */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>District Rankings</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
-              {/* Density rankings */}
-              <Card>
-                <div style={{ padding: "14px 18px 8px", borderBottom: `1px solid ${C.borderLight}` }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.saffronText, fontFamily: font.mono }}>BY DENSITY SCORE</h4>
-                </div>
-                <div style={{ padding: "4px 0" }}>
-                  {[...districts].sort((a, b) => b.densityScore - a.densityScore).map((d, i) => (
-                    <div key={d.id} style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
-                    }}>
-                      <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? C.saffronText : C.textMuted, textAlign: "right" }}>{i + 1}</div>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
-                      <div style={{ flex: 1 }}><DensityBar score={d.densityScore} /></div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Persuasion rankings */}
-              <Card>
-                <div style={{ padding: "14px 18px 8px", borderBottom: `1px solid ${C.borderLight}` }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#6D28D9", fontFamily: font.mono }}>BY PERSUASION SCORE</h4>
-                </div>
-                <div style={{ padding: "4px 0" }}>
-                  {[...districts].sort((a, b) => b.persuasionScore - a.persuasionScore).map((d, i) => (
-                    <div key={d.id} style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
-                    }}>
-                      <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? "#6D28D9" : C.textMuted, textAlign: "right" }}>{i + 1}</div>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
-                      <div style={{ flex: 1 }}><PersuasionBar score={d.persuasionScore} /></div>
-                      <Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
 
             {/* Key insight callout */}
             <Card style={{ marginBottom: 24, borderLeft: `4px solid #7C3AED`, borderColor: C.border, borderLeftColor: "#7C3AED" }}>
