@@ -17,8 +17,20 @@ const fmtDollar = v => {
   return `$${v}`;
 };
 
+// Helper: try multiple possible column names for a value
+const getOrig = r => r.originationCount || r.totalOriginations || r.originations || r.count || 0;
+const getLoan = r => r.avgLoanAmount || r.averageLoanAmount || r.medianLoanAmount || r.loanAmount || 0;
+const getYear = r => r.year || r.dataYear || r.filingYear || null;
+
 export function HouseholdWealth({ data, districtId, isMobile }) {
   const hmda = data.hmda || [];
+
+  // TEMP DEBUG — log first row to find actual column names
+  if (hmda.length > 0) {
+    console.log("[DEBUG] hmda_by_district row count:", hmda.length, "first row keys:", Object.keys(hmda[0]), "first row:", hmda[0]);
+  } else {
+    console.log("[DEBUG] hmda_by_district: EMPTY array");
+  }
 
   // HMDA national summary — aggregate across all districts
   const hmdaSummary = useMemo(() => {
@@ -31,14 +43,14 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
 
     hmda.forEach(r => {
       if (r.districtId) districts.add(r.districtId);
-      const y = r.year || r.dataYear;
+      const y = getYear(r);
       if (y) years.add(y);
-      totalOriginations += r.originationCount || 0;
-      const rowOrig = r.originationCount || 0;
-      const rowAvg = r.avgLoanAmount || 0;
-      if (rowAvg > 0 && rowOrig > 0) {
-        loanAmountSum += rowAvg * rowOrig;
-        loanAmountCount += rowOrig;
+      const orig = getOrig(r);
+      totalOriginations += orig;
+      const avg = getLoan(r);
+      if (avg > 0 && orig > 0) {
+        loanAmountSum += avg * orig;
+        loanAmountCount += orig;
       }
     });
 

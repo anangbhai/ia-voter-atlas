@@ -62,7 +62,7 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
     };
   }, [uscis]);
 
-  // HMDA stats
+  // HMDA stats — try multiple column name variants
   const hmdaStats = useMemo(() => {
     if (!hmda || hmda.length === 0) return null;
     const districts = new Set();
@@ -71,10 +71,10 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
     let loanCount = 0;
     hmda.forEach(r => {
       if (r.districtId) districts.add(r.districtId);
-      total += r.originationCount || 0;
-      const rowOrig = r.originationCount || 0;
-      const rowAvg = r.avgLoanAmount || 0;
-      if (rowAvg > 0 && rowOrig > 0) { loanSum += rowAvg * rowOrig; loanCount += rowOrig; }
+      const orig = r.originationCount || r.totalOriginations || r.originations || r.count || 0;
+      total += orig;
+      const avg = r.avgLoanAmount || r.averageLoanAmount || r.medianLoanAmount || r.loanAmount || 0;
+      if (avg > 0 && orig > 0) { loanSum += avg * orig; loanCount += orig; }
     });
     return {
       originations: total,
