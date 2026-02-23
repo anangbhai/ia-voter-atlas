@@ -110,36 +110,38 @@ export function ResearchInnovation({ data, isMobile }) {
           </Card>
 
           {/* Stat cards — NIH vs NSF breakdown */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
-            <Card>
-              <div style={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 4, height: 24, borderRadius: 2, background: C.royalBlue }} />
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>NIH</div>
+          {totals.totalAwards > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <Card>
+                <div style={{ padding: "14px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 4, height: 24, borderRadius: 2, background: C.royalBlue }} />
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>NIH</div>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
+                    {totals.nihAwards.toLocaleString()} awards
+                  </div>
+                  <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 2 }}>
+                    {fmtDollar(totals.nihAmount)} in funding
+                  </div>
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
-                  {totals.nihAwards.toLocaleString()} awards
+              </Card>
+              <Card>
+                <div style={{ padding: "14px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 4, height: 24, borderRadius: 2, background: C.saffron }} />
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>NSF</div>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
+                    {totals.nsfAwards.toLocaleString()} awards
+                  </div>
+                  <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 2 }}>
+                    {fmtDollar(totals.nsfAmount)} in funding
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 2 }}>
-                  {fmtDollar(totals.nihAmount)} in funding
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div style={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 4, height: 24, borderRadius: 2, background: C.saffron }} />
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>NSF</div>
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
-                  {totals.nsfAwards.toLocaleString()} awards
-                </div>
-                <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 2 }}>
-                  {fmtDollar(totals.nsfAmount)} in funding
-                </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </div>
+          )}
 
           {/* Chart with agency toggle */}
           {grantsByYear.length > 1 && (
