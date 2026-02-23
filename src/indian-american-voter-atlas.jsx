@@ -5,6 +5,7 @@ import { supaFetch, toCamel } from "./lib/supabase.js";
 import { C, font } from "./lib/theme.js";
 import { EconomicPresenceTab } from "./components/economic/EconomicPresenceTab.jsx";
 import { useEconomicData } from "./hooks/useEconomicData.js";
+import { computeEPI, computeStateEPI, EPI_COMPONENT_LABELS } from "./lib/epi.js";
 
 const CONTACT_EMAIL = "anangbhai+voteratlas@gmail.com";
 
@@ -395,8 +396,9 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
     if (colorMode === "party") {
       return d.party === "D" ? C.dem : C.gop;
     }
-    // default: density
-    return d.densityScore >= 90 ? C.dataWarm : d.densityScore > 80 ? "#B45309" : d.densityScore > 60 ? C.saffron : "#FBBF24";
+    // default: EPI
+    const epi = epiScores[d.id]?.score || 0;
+    return epi >= 75 ? "#047857" : epi >= 50 ? "#059669" : epi >= 25 ? "#10B981" : "#6EE7B7";
   };
 
   const getRadius = (d) => {
@@ -488,6 +490,24 @@ function DensityBar({ score }) {
   );
 }
 
+function EPIBar({ epi }) {
+  if (!epi || epi.score === 0) return <span style={{ fontSize: 11, color: C.textMuted }}>—</span>;
+  const { score, coverage } = epi;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+      <div style={{ flex: 1, height: 6, background: C.borderLight, borderRadius: 3, overflow: "hidden" }}>
+        <div style={{
+          width: `${score}%`, height: "100%", borderRadius: 3,
+          background: score >= 75 ? `linear-gradient(90deg, #047857, #059669)` : score >= 50 ? "#10B981" : score >= 25 ? "#6EE7B7" : C.textMuted,
+          transition: "width 0.6s ease"
+        }} />
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: score >= 50 ? "#047857" : C.textSecondary, minWidth: 24 }}>{score}</span>
+      <span style={{ fontSize: 8, fontFamily: font.mono, color: coverage === 5 ? "#047857" : C.textMuted, fontWeight: 600 }}>{coverage}/5</span>
+    </div>
+  );
+}
+
 function PersuasionBar({ score }) {
   const getColor = (s) => s >= 80 ? "#7C3AED" : s >= 60 ? "#8B5CF6" : "#A78BFA";
   return (
@@ -512,7 +532,7 @@ export default function IndianAmericanVoterAtlas() {
   const validTabs = ["house", "senate", "election", "safety", "discourse", "perm", "methodology"];
   const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
   const [tab, setTab] = useState(validTabs.includes(hashTab) ? hashTab : "house");
-  const [sortKey, setSortKey] = useState("densityScore");
+  const [sortKey, setSortKey] = useState("epiScore");
   const [sortDir, setSortDir] = useState("desc");
   const [filterCompetitive, setFilterCompetitive] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -608,6 +628,7 @@ export default function IndianAmericanVoterAtlas() {
   if (filterCompetitive) sortedDistricts = sortedDistricts.filter(d => d.cook2026.includes("Lean") || d.cook2026.includes("Toss") || d.cook2026.includes("Special"));
   sortedDistricts.sort((a, b) => {
     let av = a[sortKey], bv = b[sortKey];
+    if (sortKey === "epiScore") { av = (epiScores[a.id]?.score || 0); bv = (epiScores[b.id]?.score || 0); }
     if (sortKey === "cook2026") { av = ratingOrder[av] ?? 5; bv = ratingOrder[bv] ?? 5; }
     if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === "desc" ? bv - av : av - bv;
@@ -627,6 +648,17 @@ export default function IndianAmericanVoterAtlas() {
     });
     return cum;
   }, [permDistrictData]);
+
+  // Economic Presence Index (EPI) — computed from live economic data
+  const epiScores = useMemo(() => {
+    if (econData.loading) return {};
+    return computeEPI(districts, econData, permCumulative);
+  }, [districts, econData, permCumulative]);
+
+  const stateEpiScores = useMemo(() => {
+    if (econData.loading || senateRaces.length === 0) return {};
+    return computeStateEPI(senateRaces, econData, permCumulative, districts);
+  }, [senateRaces, econData, permCumulative, districts]);
 
   const tabs = [
     { key: "house", label: "House Districts" },
@@ -699,19 +731,19 @@ export default function IndianAmericanVoterAtlas() {
                 Congressional Districts by Indian American Presence
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>
-                24 districts: 20 by population density + 4 by strategic relevance · Sorted by {sortKey === "densityScore" ? "Community Density Index" : sortKey === "persuasionScore" ? "Persuasion Index" : sortKey}
+                24 districts: 20 by population density + 4 by strategic relevance · Sorted by {sortKey === "epiScore" ? "Economic Presence Index" : sortKey === "densityScore" ? "Community Density" : sortKey === "persuasionScore" ? "Persuasion Index" : sortKey}
               </p>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["densityScore", "persuasionScore", "indianPct", "indianPop", "cook2026"].map(k => (
+                {["epiScore", "densityScore", "persuasionScore", "indianPct", "indianPop", "cook2026"].map(k => (
                   <button key={k} onClick={() => handleSort(k)} style={{
                     padding: "6px 12px", fontSize: 11, borderRadius: 6, border: `1px solid ${sortKey === k ? (k === "persuasionScore" ? "#7C3AED" : C.saffronDark) : C.border}`,
                     background: sortKey === k ? (k === "persuasionScore" ? "#EDE9FE" : C.saffronBg) : C.surface, color: sortKey === k ? (k === "persuasionScore" ? "#6D28D9" : C.saffronText) : C.textSecondary,
                     cursor: "pointer", fontFamily: font.body, fontWeight: 600, transition: "all 0.15s",
                   }}>
-                    {k === "densityScore" ? "Density" : k === "persuasionScore" ? "Persuasion" : k === "indianPct" ? "% Indian" : k === "indianPop" ? "Population" : "Rating"}
+                    {k === "epiScore" ? "EPI" : k === "densityScore" ? "CDI" : k === "persuasionScore" ? "Persuasion" : k === "indianPct" ? "% Indian" : k === "indianPop" ? "Population" : "Rating"}
                     {sortKey === k && <span style={{ marginLeft: 4 }}>{sortDir === "desc" ? "↓" : "↑"}</span>}
                   </button>
                 ))}
@@ -734,7 +766,7 @@ export default function IndianAmericanVoterAtlas() {
                 <h3 style={{ fontSize: 14, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>District Map</h3>
                 <div style={{ display: "flex", gap: 4 }}>
                   {[
-                    { key: "density", label: "Density", color: C.saffron },
+                    { key: "density", label: "EPI", color: "#059669" },
                     { key: "persuasion", label: "Persuasion", color: "#7C3AED" },
                     { key: "party", label: "Party", color: C.navy },
                   ].map(m => (
@@ -742,7 +774,7 @@ export default function IndianAmericanVoterAtlas() {
                       padding: "4px 10px", fontSize: 10, borderRadius: 5, fontWeight: 600,
                       fontFamily: font.body, cursor: "pointer", transition: "all 0.15s",
                       border: `1px solid ${mapColorMode === m.key ? m.color : C.border}`,
-                      background: mapColorMode === m.key ? (m.key === "density" ? C.saffronBg : m.key === "persuasion" ? "#EDE9FE" : C.navyLight) : C.surface,
+                      background: mapColorMode === m.key ? (m.key === "density" ? "#ECFDF5" : m.key === "persuasion" ? "#EDE9FE" : C.navyLight) : C.surface,
                       color: mapColorMode === m.key ? m.color : C.textSecondary,
                     }}>{m.label}</button>
                   ))}
@@ -758,16 +790,16 @@ export default function IndianAmericanVoterAtlas() {
               <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
                 {mapColorMode === "density" && <>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.dataWarm, display: "inline-block" }} /> 90+
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#047857", display: "inline-block" }} /> 75+
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#B45309", display: "inline-block" }} /> 80–89
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#059669", display: "inline-block" }} /> 50–74
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.saffron, display: "inline-block" }} /> 60–79
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10B981", display: "inline-block" }} /> 25–49
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FBBF24", display: "inline-block" }} /> &lt;60
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6EE7B7", display: "inline-block" }} /> &lt;25
                   </span>
                 </>}
                 {mapColorMode === "persuasion" && <>
@@ -837,7 +869,8 @@ export default function IndianAmericanVoterAtlas() {
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Indian pop:</span> {(sel.indianPop / 1000).toFixed(0)}K ({sel.indianPct}%)</span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Harris 2024:</span> {sel.harris2024}%</span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Cook PVI:</span> {sel.cookPVI}</span>
-                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Density:</span> <strong style={{ color: C.saffronText }}>{sel.densityScore}</strong></span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>EPI:</span> <strong style={{ color: "#047857" }}>{epiScores[sel.id]?.score || "—"}</strong> <span style={{ fontSize: 9, color: C.textMuted }}>({epiScores[sel.id]?.coverage || 0}/5)</span></span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>CDI:</span> <strong style={{ color: C.saffronText }}>{sel.densityScore}</strong></span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Persuasion:</span> <strong style={{ color: "#6D28D9" }}>{sel.persuasionScore}</strong></span>
                     {sel.notes && <span style={{ flexBasis: "100%", fontSize: 11, color: C.textMuted, fontStyle: "italic" }}>{sel.notes}</span>}
                   </div>
@@ -861,11 +894,11 @@ export default function IndianAmericanVoterAtlas() {
                       color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
                       marginBottom: 4,
                     }}>
-                      {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                      {activeInfoBox === "epi" ? "Economic Presence Index" : "Persuasion Index"}
                     </div>
                     <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
-                      {activeInfoBox === "density"
-                        ? "Composite score (0–100) measuring Indian American civic presence in the district: census population share, FEC donor density, cultural institutions (temples, gurdwaras, businesses), Google Trends signals, and H-1B/PERM employment data. Higher scores indicate deeper community roots and infrastructure."
+                      {activeInfoBox === "epi"
+                        ? "Economic Presence Index (0–100): weighted composite of FEC donor activity (30%), HMDA mortgage originations (25%), business ownership (20%), NIH/NSF research grants (15%), and SBA loans (10%). Missing components are excluded and weights renormalized — the coverage badge shows how many of 5 indicators contributed. Computed from live federal data using min-max normalization across the 24-district set."
                         : "Composite score (0–100) measuring how moveable the Indian American vote is in the district: Cook PVI competitiveness, 2020→2024 precinct-level swing, independent identification rate, population size relative to margin, and bounceback evidence from prior cycles. Higher scores indicate greater strategic opportunity for outreach."}
                     </div>
                   </div>
@@ -886,7 +919,7 @@ export default function IndianAmericanVoterAtlas() {
                 textTransform: "uppercase", letterSpacing: 1,
               }}>
                 <div>District</div><div>Representative</div><div style={{ textAlign: "right" }}>Indian %</div>
-                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
+                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>EPI<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "epi" ? null : "epi"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "epi" ? C.navy : C.borderLight, color: activeInfoBox === "epi" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
               </div>
               <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "6px 16px", marginBottom: 0 }}>
                 <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
@@ -913,7 +946,7 @@ export default function IndianAmericanVoterAtlas() {
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontWeight: 600, fontSize: 13, color: d.indianPct > 6 ? C.saffronText : C.text }}>{d.indianPct}%</div>
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontSize: 12, color: C.textSecondary }}>{(d.indianPop / 1000).toFixed(0)}K</div>
                     <div><Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge></div>
-                    <DensityBar score={d.densityScore} />
+                    <EPIBar epi={epiScores[d.id]} />
                     <PersuasionBar score={d.persuasionScore} />
                   </div>
                   {expandedRow === d.id && (() => {
@@ -927,10 +960,24 @@ export default function IndianAmericanVoterAtlas() {
                       <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
                         <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
                         {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
+                        <span style={{ marginLeft: 8, fontFamily: font.mono, fontSize: 11 }}>CDI: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong></span>
                         <br />{d.notes}
+                        {epiScores[d.id] && epiScores[d.id].coverage > 0 && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
+                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>EPI Score based on {epiScores[d.id].coverage} of 5 indicators:</span>
+                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                              {Object.entries(epiScores[d.id].components).map(([key, val]) => (
+                                <span key={key} style={{ opacity: val !== null ? 1 : 0.4 }}>
+                                  <span style={{ color: C.textMuted }}>{EPI_COMPONENT_LABELS[key]}:</span>{" "}
+                                  <strong style={{ color: val !== null ? "#047857" : C.textMuted }}>{val !== null ? val : "—"}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {hasEcon && (
                           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
-                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Economic:</span>
+                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Raw data:</span>
                             {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA originations:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
                             {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC 2024:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
                           </div>
@@ -961,7 +1008,7 @@ export default function IndianAmericanVoterAtlas() {
                           color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
                           marginBottom: 4,
                         }}>
-                          {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                          {activeInfoBox === "epi" ? "Economic Presence Index" : "Persuasion Index"}
                         </div>
                         <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
                           {activeInfoBox === "density"
@@ -1005,8 +1052,8 @@ export default function IndianAmericanVoterAtlas() {
                       {/* Row 3: Bars side by side */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
-                          <DensityBar score={d.densityScore} />
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>EPI<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "epi" ? null : "epi"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "epi" ? C.navy : C.borderLight, color: activeInfoBox === "epi" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
+                          <EPIBar epi={epiScores[d.id]} />
                         </div>
                         <div>
                           <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
@@ -1025,10 +1072,15 @@ export default function IndianAmericanVoterAtlas() {
                           <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
                             <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
                             {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
+                            <span style={{ marginLeft: 6, fontFamily: font.mono, fontSize: 10 }}>CDI: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong></span>
                             <br />{d.notes}
+                            {epiScores[d.id] && epiScores[d.id].coverage > 0 && (
+                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.borderLight}`, fontSize: 10 }}>
+                                <span style={{ fontFamily: font.mono, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Score based on {epiScores[d.id].coverage} of 5 indicators</span>
+                              </div>
+                            )}
                             {hasEcon && (
-                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.borderLight}`, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11 }}>
-                                <span style={{ fontFamily: font.mono, fontSize: 9, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Econ:</span>
+                              <div style={{ marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11 }}>
                                 {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
                                 {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC '24:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
                               </div>
@@ -1090,6 +1142,12 @@ export default function IndianAmericanVoterAtlas() {
                         <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>
                           {race.incumbent} <span style={{ color: race.party === "D" ? C.dem : C.gop, fontWeight: 600 }}>({race.party})</span> · Trump margin: {race.trumpMargin2024}
                           <span style={{ marginLeft: 6, fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>({race.indianPct}%)</span>
+                          {stateEpiScores[race.state] && stateEpiScores[race.state].score > 0 && (
+                            <span style={{ marginLeft: 8, fontSize: 10, fontFamily: font.mono }}>
+                              <span style={{ color: C.textMuted }}>EPI:</span> <strong style={{ color: "#047857" }}>{stateEpiScores[race.state].score}</strong>
+                              <span style={{ fontSize: 8, color: C.textMuted, marginLeft: 2 }}>{stateEpiScores[race.state].coverage}/5</span>
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -1108,6 +1166,13 @@ export default function IndianAmericanVoterAtlas() {
                           <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: race.indianPop > 100000 ? C.saffron : C.text }}>{(race.indianPop / 1000).toFixed(0)}K</div>
                             <div style={{ fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>INDIAN POP ({race.indianPct}%)</div>
+                            {stateEpiScores[race.state] && stateEpiScores[race.state].score > 0 && (
+                              <div style={{ marginTop: 4, fontSize: 11, fontFamily: font.mono }}>
+                                <span style={{ color: C.textMuted }}>EPI:</span>{" "}
+                                <strong style={{ color: "#047857" }}>{stateEpiScores[race.state].score}</strong>
+                                <span style={{ fontSize: 8, color: C.textMuted, marginLeft: 3 }}>{stateEpiScores[race.state].coverage}/5</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </>
@@ -1821,19 +1886,55 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The Economic Presence tab provides immigration pipeline data, household wealth indicators (HMDA), business ownership metrics (ABS/SBA), scientific research activity (NIH), and political contribution patterns (FEC) as independent economic signals.
+                Three indices power this dashboard. The Economic Presence Index (EPI) is the primary score shown on district cards and Senate race rows, computed dynamically from live federal data. The Community Density Index (CDI) and Persuasion Index remain available in the detail view.
               </p>
             </div>
 
-            {/* COMMUNITY DENSITY INDEX — FLAT */}
+            {/* ECONOMIC PRESENCE INDEX */}
             <Card style={{ marginBottom: 16 }}>
               <div style={{ padding: "18px 22px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index</h3>
-                  <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Economic Presence Index (EPI)</h3>
+                  <Badge color="#047857" bg="#ECFDF5">0–100</Badge>
+                  <Badge color={C.navy} bg={C.navyLight}>PRIMARY</Badge>
                 </div>
                 <p style={{ margin: "0 0 16px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
-                  Where Indian Americans are civically and economically active — not just where they live. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement.
+                  Composite score measuring Indian American economic footprint in each district, computed dynamically from live federal data using min-max normalization across the 24-district set. Missing components are excluded from the denominator and weights renormalized — the coverage badge (e.g. "4/5") shows how many indicators contributed.
+                </p>
+                {[
+                  { name: "FEC Donor Activity", weight: 30, description: "Federal Election Commission individual contributions filtered by Indian surname, measured as donor-to-population ratio. Covers 8 districts directly plus state-level proxy for remaining districts.", icon: "💰" },
+                  { name: "HMDA Mortgage Originations", weight: 25, description: "Home Mortgage Disclosure Act data — originations per capita using HMDA race code 21 (Asian Indian), borrower self-reported. Available for 8 of 24 districts.", icon: "🏠" },
+                  { name: "Business Ownership Rate", weight: 20, description: "ACS self-employment data and ABS employer firm counts (Asian Indian share estimated at ~22% of Asian total). Available for all 24 districts.", icon: "🏭" },
+                  { name: "NIH/NSF Grant Activity", weight: 15, description: "National Institutes of Health and National Science Foundation awards to South Asian PIs (surname estimate). State-level data mapped as district proxy. Covers 11 states.", icon: "🔬" },
+                  { name: "SBA Loan Volume", weight: 10, description: "Small Business Administration 7(a) and 504 program loan volume per capita, filtered by Indian surname on business owner names. Available for all 24 districts.", icon: "🏦" },
+                ].map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < 4 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#047857", background: "#ECFDF5", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ marginTop: 12, padding: "10px 14px", background: "#F0FDF4", borderRadius: 6, fontSize: 12, color: "#065F46", lineHeight: 1.6 }}>
+                  <strong>Missing component handling:</strong> If a district lacks data for a component (e.g. no HMDA records), that component is excluded and the remaining weights are renormalized to sum to 100%. A district scored on 3 of 5 indicators is compared fairly against one scored on all 5 — no penalty for missing data.
+                </div>
+              </div>
+            </Card>
+
+            {/* COMMUNITY DENSITY INDEX — LEGACY */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index (CDI)</h3>
+                  <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
+                  <Badge color={C.textMuted} bg={C.borderLight}>LEGACY</Badge>
+                </div>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Static composite measuring where Indian Americans are civically and economically active. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement. Visible in district detail view; replaced by EPI as the primary sort metric.
                 </p>
                 {DENSITY_METHODS.map((m, i) => (
                   <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>

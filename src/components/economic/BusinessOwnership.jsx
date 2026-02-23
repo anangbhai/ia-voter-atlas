@@ -38,17 +38,30 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
   const absRow = abs.length > 0 ? abs[0] : null;
   const firmCount = absRow?.asianOwnedFirms || 0;
 
+  // TEMP DEBUG — discover SBA columns
+  if (sba.length > 0) {
+    console.log("[DEBUG] sba_loans first row keys:", Object.keys(sba[0]), "first row:", sba[0]);
+  }
+
   // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount
   const sbaTotal = useMemo(() => {
     const total = { loans7a: 0, loans504: 0, amount7a: 0, amount504: 0 };
+    const years = new Set();
     sba.forEach(r => {
       total.loans7a += r.sba7aSurnameLoans || 0;
       total.amount7a += r.sba7aSurnameAmount || 0;
       total.loans504 += r.sba504SurnameLoans || 0;
       total.amount504 += r.sba504SurnameAmount || 0;
+      // Try multiple possible year column names
+      const y = r.dataYear || r.fiscalYear || r.approvalYear || r.year;
+      if (y) years.add(String(y));
     });
     total.totalLoans = total.loans7a + total.loans504;
     total.totalAmount = total.amount7a + total.amount504;
+    const sortedYears = [...years].sort();
+    total.yearRange = sortedYears.length > 0
+      ? `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}`
+      : null;
     return total;
   }, [sba]);
 
@@ -75,6 +88,11 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
         <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
           Business Formation & Entrepreneurship
         </h3>
+        {sbaTotal.yearRange && (
+          <p style={{ margin: 0, fontSize: 12, color: C.textSecondary }}>
+            SBA loan data, {sbaTotal.yearRange}
+          </p>
+        )}
       </div>
 
       {/* Hero callout — SBA surname-based (primary) */}
