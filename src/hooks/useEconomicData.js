@@ -33,15 +33,6 @@ export function useEconomicData(districtId = null, state = null) {
           supaFetch("fec_south_asian").catch(e => { console.warn("[ECON] fec_south_asian FAILED:", e.message); return []; }),
         ]);
 
-        // TEMP DEBUG: log raw row counts and first row from each table
-        console.log("[ECON] uscis_india:", uscis.length, "rows", uscis[0] || "(empty)");
-        console.log("[ECON] hmda_by_district:", hmda.length, "rows", hmda[0] || "(empty)");
-        console.log("[ECON] acs_econ_by_district:", acs.length, "rows", acs[0] || "(empty)");
-        console.log("[ECON] abs_by_district:", abs.length, "rows", abs[0] || "(empty)");
-        console.log("[ECON] sba_loans:", sba.length, "rows", sba[0] || "(empty)");
-        console.log("[ECON] grants_south_asian:", grants.length, "rows", grants[0] || "(empty)");
-        console.log("[ECON] fec_south_asian:", fec.length, "rows", fec[0] || "(empty)");
-
         if (cancelled) return;
 
         const mapped = {
