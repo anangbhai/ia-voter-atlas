@@ -633,9 +633,9 @@ export default function IndianAmericanVoterAtlas() {
     { key: "house", label: "House Districts" },
     { key: "senate", label: "Senate 2026" },
     { key: "election", label: "2024 Election" },
+    { key: "perm", label: "Economic Presence" },
     { key: "safety", label: "Community Safety" },
     { key: "discourse", label: "Discourse Monitor" },
-    { key: "perm", label: "Economic Presence" },
     { key: "methodology", label: "Methodology" },
   ];
 
