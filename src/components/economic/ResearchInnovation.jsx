@@ -98,8 +98,8 @@ export function ResearchInnovation({ data, isMobile }) {
                   <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
                     NIH Awards & Funding by Year
                   </h4>
-                  <div style={{ width: "100%", height: isMobile ? 200 : 260 }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div style={{ width: "100%", minHeight: isMobile ? 200 : 260 }}>
+                    <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
                       <ComposedChart data={grantsByYear} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.borderLight} />
                         <XAxis dataKey="year" tick={{ fontSize: 10, fontFamily: font.mono, fill: C.textMuted }} tickLine={false} />

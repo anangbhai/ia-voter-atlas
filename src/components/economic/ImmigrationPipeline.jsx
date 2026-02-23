@@ -107,8 +107,8 @@ function UscisPanel({ isMobile }) {
         </p>
 
         {/* Chart */}
-        <div style={{ width: "100%", height: isMobile ? 220 : 280 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: "100%", minHeight: isMobile ? 220 : 280 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={C.borderLight} />
               <XAxis

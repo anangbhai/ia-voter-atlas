@@ -188,8 +188,8 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
             <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
               SBA Loan Activity by Period
             </h4>
-            <div style={{ width: "100%", height: isMobile ? 180 : 220 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: "100%", minHeight: isMobile ? 180 : 220 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
                 <BarChart data={sbaChartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.borderLight} />
                   <XAxis dataKey="period" tick={{ fontSize: 10, fontFamily: font.mono, fill: C.textMuted }} tickLine={false} />
