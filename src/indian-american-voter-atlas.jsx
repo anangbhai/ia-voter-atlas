@@ -633,7 +633,7 @@ export default function IndianAmericanVoterAtlas() {
     { key: "election", label: "2024 Election" },
     { key: "safety", label: "Community Safety" },
     { key: "discourse", label: "Discourse Monitor" },
-    { key: "perm", label: "DOL PERM Data" },
+    { key: "perm", label: "Economic Presence" },
     { key: "methodology", label: "Methodology" },
   ];
 
@@ -662,7 +662,7 @@ export default function IndianAmericanVoterAtlas() {
             District-level political intelligence for the fastest-growing electorate in America
           </p>
           <div style={{ fontSize: 10, fontFamily: font.mono, color: "rgba(255,255,255,0.4)", marginTop: 4, letterSpacing: 0.3 }}>
-            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, Cook Political Report
+            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, HMDA, ABS, SBA, NIH, Cook Political Report
           </div>
         </div>
       </header>
@@ -1768,7 +1768,7 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The DOL PERM Data tab provides 17 years of employment-based green card sponsorship data as an independent economic signal.
+                Two proprietary indices power this dashboard. The Economic Presence tab provides immigration pipeline data, household wealth indicators (HMDA), business ownership metrics (ACS/ABS/SBA), research &amp; innovation activity (NIH), and political contribution patterns (FEC) as independent economic signals.
               </p>
             </div>
 
@@ -1900,7 +1900,7 @@ export default function IndianAmericanVoterAtlas() {
               <div style={{ padding: "18px 22px" }}>
                 <h4 style={{ fontSize: 14, fontWeight: 700, color: C.navy, margin: "0 0 12px" }}>Data Sources</h4>
                 <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.8, fontFamily: font.body }}>
-                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · Google Trends API · Google Places API · USCIS H-1B employer data · DOL OFLC PERM Disclosure Data (FY2008–FY2024) · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
+                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · HMDA mortgage origination data · Census Annual Business Survey (ABS) · SBA 7(a) & 504 loan data · NIH Reporter grants (surname methodology) · Google Trends API · Google Places API · USCIS H-1B employer data · DOL OFLC PERM Disclosure Data (FY2008–FY2024) · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
                 </div>
               </div>
             </Card>
@@ -1912,7 +1912,7 @@ export default function IndianAmericanVoterAtlas() {
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: isMobile ? "20px 16px" : "24px 32px", background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, lineHeight: 1.8 }}>
-            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, AAPI Data, FBI UCR, DOL PERM<br />
+            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, HMDA, ABS, SBA, NIH, AAPI Data, FBI UCR, DOL PERM<br />
             Methodology: Community Density Index v1.0 · Persuasion Index v1.0 · Not affiliated with any political campaign or party<br />
             Published by <span style={{ color: C.saffronText }}>Anang Mittal</span> · Built for civic engagement and public interest research
           </div>
