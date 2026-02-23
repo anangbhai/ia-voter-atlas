@@ -529,9 +529,11 @@ function PersuasionBar({ score }) {
 // ═══════════════════════════════════════════════════════════
 
 export default function IndianAmericanVoterAtlas() {
-  const validTabs = ["house", "senate", "election", "safety", "discourse", "perm", "methodology"];
-  const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
-  const [tab, setTab] = useState(validTabs.includes(hashTab) ? hashTab : "house");
+  const validTabs = ["house", "senate", "election", "safety", "discourse", "economic", "methodology"];
+  const validEconSections = ["overview", "immigration", "wealth", "business", "research", "political"];
+  const rawHash = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+  const [hashTabKey, hashSection] = rawHash.split("/");
+  const [tab, setTab] = useState(validTabs.includes(hashTabKey) ? hashTabKey : "house");
   const [sortKey, setSortKey] = useState("epiScore");
   const [sortDir, setSortDir] = useState("desc");
   const [filterCompetitive, setFilterCompetitive] = useState(false);
@@ -543,6 +545,7 @@ export default function IndianAmericanVoterAtlas() {
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
   const [mapColorMode, setMapColorMode] = useState("density");
+  const [econSection, setEconSection] = useState(validEconSections.includes(hashSection) ? hashSection : "overview");
   const [permSubTab, setPermSubTab] = useState("wages");
   const [permDistrict, setPermDistrict] = useState("TX-22");
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
@@ -569,12 +572,53 @@ export default function IndianAmericanVoterAtlas() {
 
   useEffect(() => { setLoaded(true); }, []);
 
+  // Update document title + meta description for SEO
+  const TAB_META = {
+    house: "24 high-priority Congressional districts ranked by Indian American community density and economic presence, with Cook Political ratings and persuasion scores for 2026.",
+    senate: "2026 Senate races with Indian American population data, economic presence scores, and competitive ratings across key battleground states.",
+    election: "How Indian Americans voted in 2024 — precinct-level swings, partisan trends, demographic breakdowns, and early indicators for 2026.",
+    economic: "Indian American economic footprint across U.S. Congressional districts: immigration pipeline, household wealth, business ownership, scientific research, and political giving.",
+    safety: "Hate crime trends and temple incidents affecting the Indian American community, tracked by Congressional district and mapped over time.",
+    discourse: "Media narratives and political discourse affecting Indian American communities — tracking rhetoric across the political spectrum in 2024–2026.",
+    methodology: "Data sources, scoring methodology, and technical notes for the Indian American Voter Atlas.",
+  };
+  const ECON_SECTION_META = {
+    overview: "High-level summary of Indian American economic presence: PERM visa totals, household income, business formation, research grants, and political contributions by district.",
+    immigration: "DOL PERM labor certification data (FY2008–2024) showing India-born permanent resident applications by Congressional district — a proxy for skilled immigrant talent pipelines.",
+    wealth: "HMDA mortgage origination data showing Indian American household purchasing power and homeownership concentration across U.S. Congressional districts.",
+    business: "SBA loan data and business formation statistics highlighting Indian American entrepreneurship and small business ownership patterns by Congressional district.",
+    research: "NIH and federal research grant data showing Indian American academic and scientific contributions by Congressional district and institution.",
+    political: "FEC campaign finance data showing Indian American political giving patterns, top recipients, and PAC activity across Congressional districts.",
+  };
+  useEffect(() => {
+    const baseTitle = "Indian American Voter Atlas";
+    const tabLabel = { house: "House Districts", senate: "Senate 2026", election: "2024 Election", economic: "Economic Presence", safety: "Community Safety", discourse: "Discourse Monitor", methodology: "Methodology" }[tab] ?? baseTitle;
+    const desc = tab === "economic"
+      ? ECON_SECTION_META[econSection] ?? TAB_META.economic
+      : TAB_META[tab] ?? "District-level political intelligence for the fastest-growing electorate in America.";
+    document.title = tab === "house" ? baseTitle : `${tabLabel} — ${baseTitle}`;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.name = "description";
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = desc;
+  }, [tab, econSection]);
+
   // Handle browser back/forward
   useEffect(() => {
     const onNav = () => {
-      const h = window.location.hash.replace("#", "");
-      if (validTabs.includes(h)) setTab(h);
-      else setTab("house");
+      const raw = window.location.hash.slice(1);
+      const [tabKey, section] = raw.split("/");
+      if (validTabs.includes(tabKey)) {
+        setTab(tabKey);
+        if (tabKey === "economic" && validEconSections.includes(section)) {
+          setEconSection(section);
+        }
+      } else {
+        setTab("house");
+      }
     };
     window.addEventListener("popstate", onNav);
     return () => window.removeEventListener("popstate", onNav);
@@ -664,7 +708,7 @@ export default function IndianAmericanVoterAtlas() {
     { key: "house", label: "House Districts" },
     { key: "senate", label: "Senate 2026" },
     { key: "election", label: "2024 Election" },
-    { key: "perm", label: "Economic Presence" },
+    { key: "economic", label: "Economic Presence" },
     { key: "safety", label: "Community Safety" },
     { key: "discourse", label: "Discourse Monitor" },
     { key: "methodology", label: "Methodology" },
@@ -708,7 +752,12 @@ export default function IndianAmericanVoterAtlas() {
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => { window.history.pushState(null, "", t.key === "house" ? window.location.pathname : `#${t.key}`); setTab(t.key); }} style={{
+            <button key={t.key} onClick={() => {
+              if (t.key === "house") window.history.pushState(null, "", window.location.pathname);
+              else if (t.key === "economic") window.history.pushState(null, "", `#economic/${econSection}`);
+              else window.history.pushState(null, "", `#${t.key}`);
+              setTab(t.key);
+            }} style={{
               padding: isMobile ? "10px 12px" : "14px 20px", fontSize: isMobile ? 11 : 13, fontWeight: tab === t.key ? 700 : 500,
               fontFamily: font.body, border: "none", cursor: "pointer",
               background: "transparent",
@@ -1863,7 +1912,7 @@ export default function IndianAmericanVoterAtlas() {
         )}
 
         {/* ═══ ECONOMIC PRESENCE TAB ═══ */}
-        {tab === "perm" && (
+        {tab === "economic" && (
           <EconomicPresenceTab
             permDistrictData={permDistrictData}
             permStateData={permStateData}
@@ -1875,6 +1924,11 @@ export default function IndianAmericanVoterAtlas() {
             setPermEmpYear={setPermEmpYear}
             permSubTab={permSubTab}
             setPermSubTab={setPermSubTab}
+            activeSection={econSection}
+            onSectionChange={(s) => {
+              setEconSection(s);
+              window.history.pushState(null, "", `#economic/${s}`);
+            }}
             isMobile={isMobile}
           />
         )}
