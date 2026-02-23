@@ -24,13 +24,13 @@ export function useEconomicData(districtId = null, state = null) {
       setError(null);
       try {
         const [uscis, hmda, acs, abs, sba, grants, fec] = await Promise.all([
-          supaFetch("uscis_india").catch(e => { console.warn("[ECON] uscis_india FAILED:", e.message); return []; }),
-          supaFetch("hmda_by_district").catch(e => { console.warn("[ECON] hmda_by_district FAILED:", e.message); return []; }),
-          supaFetch("acs_econ_by_district").catch(e => { console.warn("[ECON] acs_econ_by_district FAILED:", e.message); return []; }),
-          supaFetch("abs_by_district").catch(e => { console.warn("[ECON] abs_by_district FAILED:", e.message); return []; }),
-          supaFetch("sba_loans").catch(e => { console.warn("[ECON] sba_loans FAILED:", e.message); return []; }),
-          supaFetch("grants_south_asian").catch(e => { console.warn("[ECON] grants_south_asian FAILED:", e.message); return []; }),
-          supaFetch("fec_south_asian").catch(e => { console.warn("[ECON] fec_south_asian FAILED:", e.message); return []; }),
+          supaFetch("uscis_india").catch(() => []),
+          supaFetch("hmda_by_district").catch(() => []),
+          supaFetch("acs_econ_by_district").catch(() => []),
+          supaFetch("abs_by_district").catch(() => []),
+          supaFetch("sba_loans").catch(() => []),
+          supaFetch("grants_south_asian").catch(() => []),
+          supaFetch("fec_south_asian").catch(() => []),
         ]);
 
         if (cancelled) return;

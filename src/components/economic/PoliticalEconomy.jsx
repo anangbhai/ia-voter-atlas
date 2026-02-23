@@ -27,13 +27,6 @@ export function PoliticalEconomy({ data, isMobile }) {
   const fec = data.fec || [];
   const [selectedCycle, setSelectedCycle] = useState("2024");
 
-  // TEMP DEBUG
-  if (fec.length > 0) {
-    console.log("[DEBUG] fec_south_asian row count:", fec.length, "first row keys:", Object.keys(fec[0]), "first row:", fec[0]);
-    const types = new Set(fec.map(r => r.geographyType));
-    console.log("[DEBUG] fec geographyType values:", [...types]);
-  }
-
   // Available cycles from data
   const availableCycles = useMemo(() => {
     const set = new Set();

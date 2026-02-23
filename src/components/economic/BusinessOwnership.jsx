@@ -38,11 +38,6 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
   const absRow = abs.length > 0 ? abs[0] : null;
   const firmCount = absRow?.asianOwnedFirms || 0;
 
-  // TEMP DEBUG — discover SBA columns
-  if (sba.length > 0) {
-    console.log("[DEBUG] sba_loans first row keys:", Object.keys(sba[0]), "first row:", sba[0]);
-  }
-
   // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount
   const sbaTotal = useMemo(() => {
     const total = { loans7a: 0, loans504: 0, amount7a: 0, amount504: 0 };
