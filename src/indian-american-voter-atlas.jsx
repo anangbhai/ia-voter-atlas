@@ -931,8 +931,7 @@ export default function IndianAmericanVoterAtlas() {
                         {hasEcon && (
                           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
                             <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Economic:</span>
-                            {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA originations:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originationCount || hmdaRow.totalOriginations || 0).toLocaleString()}</strong></span>}
-                            {acsRow && <span><span style={{ color: C.textMuted }}>Self-employed:</span> <strong style={{ color: C.navy }}>{(acsRow.selfEmployed || acsRow.selfEmployedCount || 0).toLocaleString()}</strong></span>}
+                            {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA originations:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
                             {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC 2024:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
                           </div>
                         )}
@@ -1030,8 +1029,7 @@ export default function IndianAmericanVoterAtlas() {
                             {hasEcon && (
                               <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.borderLight}`, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11 }}>
                                 <span style={{ fontFamily: font.mono, fontSize: 9, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Econ:</span>
-                                {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originationCount || hmdaRow.totalOriginations || 0).toLocaleString()}</strong></span>}
-                                {acsRow && <span><span style={{ color: C.textMuted }}>Self-emp:</span> <strong style={{ color: C.navy }}>{(acsRow.selfEmployed || acsRow.selfEmployedCount || 0).toLocaleString()}</strong></span>}
+                                {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
                                 {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC '24:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
                               </div>
                             )}

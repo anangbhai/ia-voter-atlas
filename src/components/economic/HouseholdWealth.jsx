@@ -12,55 +12,60 @@ function Card({ children, style = {} }) {
 }
 
 const fmtDollar = v => {
+  if (v >= 1000000000) return `$${(v / 1000000000).toFixed(1)}B`;
   if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
   if (v >= 1000) return `$${(v / 1000).toFixed(0)}K`;
   return `$${v}`;
 };
 
-// Helper: try multiple possible column names for a value
-const getOrig = r => r.originationCount || r.totalOriginations || r.originations || r.count || 0;
-const getLoan = r => r.avgLoanAmount || r.averageLoanAmount || r.medianLoanAmount || r.loanAmount || 0;
-const getYear = r => r.year || r.dataYear || r.filingYear || null;
-
 export function HouseholdWealth({ data, districtId, isMobile }) {
   const hmda = data.hmda || [];
 
-  // TEMP DEBUG — log first row to find actual column names
-  if (hmda.length > 0) {
-    console.log("[DEBUG] hmda_by_district row count:", hmda.length, "first row keys:", Object.keys(hmda[0]), "first row:", hmda[0]);
-  } else {
-    console.log("[DEBUG] hmda_by_district: EMPTY array");
-  }
+  // HMDA schema (from debug):
+  //   originations, applicationsTotal, approvalRate, denials,
+  //   avgLoanAmountThousands, medianLoanAmountThousands, totalLoanAmountThousands,
+  //   avgApplicantIncomeThousands, medianApplicantIncomeThousands,
+  //   purchaseCount, refinanceCount, singleFamilyCount, multifamilyCount,
+  //   districtId, dataYear, boundaryCongress, sourceUrl, updatedAt
+  //
+  // "Thousands" columns are in $1,000 units — multiply by 1000 for actual dollars
 
-  // HMDA national summary — aggregate across all districts
   const hmdaSummary = useMemo(() => {
     if (hmda.length === 0) return null;
     const districts = new Set();
     let totalOriginations = 0;
-    let loanAmountSum = 0;
-    let loanAmountCount = 0;
+    let totalLoanThousands = 0;
+    let totalApplications = 0;
+    let totalPurchase = 0;
+    let totalRefi = 0;
     const years = new Set();
 
     hmda.forEach(r => {
       if (r.districtId) districts.add(r.districtId);
-      const y = getYear(r);
-      if (y) years.add(y);
-      const orig = getOrig(r);
-      totalOriginations += orig;
-      const avg = getLoan(r);
-      if (avg > 0 && orig > 0) {
-        loanAmountSum += avg * orig;
-        loanAmountCount += orig;
-      }
+      if (r.dataYear) years.add(r.dataYear);
+      totalOriginations += r.originations || 0;
+      totalLoanThousands += r.totalLoanAmountThousands || 0;
+      totalApplications += r.applicationsTotal || 0;
+      totalPurchase += r.purchaseCount || 0;
+      totalRefi += r.refinanceCount || 0;
     });
 
     const sortedYears = [...years].sort();
     const yearRange = sortedYears.length > 0 ? `${sortedYears[0]}–${sortedYears[sortedYears.length - 1]}` : "";
-    const avgLoan = loanAmountCount > 0 ? Math.round(loanAmountSum / loanAmountCount) : 0;
+    // Convert from thousands to actual dollars
+    const avgLoan = totalOriginations > 0 ? Math.round((totalLoanThousands / totalOriginations) * 1000) : 0;
+    const avgApproval = hmda.length > 0
+      ? hmda.reduce((s, r) => s + (r.approvalRate || 0), 0) / hmda.length
+      : 0;
 
     return {
       totalOriginations,
+      totalLoanDollars: totalLoanThousands * 1000,
       avgLoanAmount: avgLoan,
+      avgApprovalRate: avgApproval,
+      totalApplications,
+      totalPurchase,
+      totalRefi,
       districtCount: districts.size,
       yearRange,
     };
@@ -107,9 +112,38 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
             </div>
             <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 4 }}>
               Average loan amount: <strong style={{ color: C.navy }}>{fmtDollar(hmdaSummary.avgLoanAmount)}</strong>
+              {" · "}Total volume: <strong style={{ color: C.navy }}>{fmtDollar(hmdaSummary.totalLoanDollars)}</strong>
             </div>
           </div>
         </Card>
+
+        {/* Stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+          <Card>
+            <div style={{ padding: "12px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>Applications</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{hmdaSummary.totalApplications.toLocaleString()}</div>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ padding: "12px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>Avg Approval Rate</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{(hmdaSummary.avgApprovalRate * 100).toFixed(0)}%</div>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ padding: "12px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>Purchases</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{hmdaSummary.totalPurchase.toLocaleString()}</div>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ padding: "12px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono }}>Refinances</div>
+              <div style={{ fontSize: 18, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{hmdaSummary.totalRefi.toLocaleString()}</div>
+            </div>
+          </Card>
+        </div>
 
         <p style={{ fontSize: 11, color: C.textMuted, margin: "0 0 4px" }}>
           CFPB Home Mortgage Disclosure Act (HMDA), {hmdaSummary.yearRange}. Exact count — HMDA race code 21 (Asian Indian), borrower self-reported.

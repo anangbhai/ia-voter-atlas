@@ -62,23 +62,22 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
     };
   }, [uscis]);
 
-  // HMDA stats — try multiple column name variants
+  // HMDA stats — actual columns: originations, totalLoanAmountThousands, districtId, dataYear
   const hmdaStats = useMemo(() => {
     if (!hmda || hmda.length === 0) return null;
     const districts = new Set();
     let total = 0;
-    let loanSum = 0;
-    let loanCount = 0;
+    let totalLoanThousands = 0;
     hmda.forEach(r => {
       if (r.districtId) districts.add(r.districtId);
-      const orig = r.originationCount || r.totalOriginations || r.originations || r.count || 0;
-      total += orig;
-      const avg = r.avgLoanAmount || r.averageLoanAmount || r.medianLoanAmount || r.loanAmount || 0;
-      if (avg > 0 && orig > 0) { loanSum += avg * orig; loanCount += orig; }
+      total += r.originations || 0;
+      totalLoanThousands += r.totalLoanAmountThousands || 0;
     });
+    // "Thousands" columns are in $1,000 units
+    const avgLoan = total > 0 ? Math.round((totalLoanThousands / total) * 1000) : 0;
     return {
       originations: total,
-      avgLoan: loanCount > 0 ? Math.round(loanSum / loanCount) : 0,
+      avgLoan,
       districtCount: districts.size,
     };
   }, [hmda]);

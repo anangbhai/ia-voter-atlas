@@ -26,9 +26,13 @@ const PRESIDENTIAL = new Set(["2008", "2012", "2016", "2020", "2024"]);
 export function PoliticalEconomy({ data, isMobile }) {
   const fec = data.fec || [];
   const [selectedCycle, setSelectedCycle] = useState("2024");
-  const [sortCol, setSortCol] = useState("totalContributions");
-  const [sortDir, setSortDir] = useState("desc");
-  const [filterType, setFilterType] = useState("all");
+
+  // TEMP DEBUG
+  if (fec.length > 0) {
+    console.log("[DEBUG] fec_south_asian row count:", fec.length, "first row keys:", Object.keys(fec[0]), "first row:", fec[0]);
+    const types = new Set(fec.map(r => r.geographyType));
+    console.log("[DEBUG] fec geographyType values:", [...types]);
+  }
 
   // Available cycles from data
   const availableCycles = useMemo(() => {
@@ -47,10 +51,7 @@ export function PoliticalEconomy({ data, isMobile }) {
     const total = cycleData.reduce((s, r) => s + (r.totalContributions || 0), 0);
     const donors = cycleData.reduce((s, r) => s + (r.estimatedDonors || 0), 0);
     const txns = cycleData.reduce((s, r) => s + (r.transactionCount || 0), 0);
-    const topDistrict = cycleData
-      .filter(r => (r.geographyType || "").toLowerCase() === "district")
-      .sort((a, b) => (b.totalContributions || 0) - (a.totalContributions || 0))[0];
-    return { total, donors, txns, topDistrict };
+    return { total, donors, txns };
   }, [cycleData]);
 
   // Trend data — aggregate by cycle
@@ -65,57 +66,27 @@ export function PoliticalEconomy({ data, isMobile }) {
     return Object.values(byCycle).sort((a, b) => a.cycle.localeCompare(b.cycle));
   }, [fec]);
 
-  // Geographic breakdown for selected cycle — top entries
-  const geoBreakdown = useMemo(() => {
-    const districts = cycleData
-      .filter(r => (r.geographyType || "").toLowerCase() === "district")
+  // Top geographies for selected cycle — combine all rows sorted by contributions
+  const topGeos = useMemo(() => {
+    return [...cycleData]
+      .filter(r => (r.totalContributions || 0) > 0)
       .sort((a, b) => (b.totalContributions || 0) - (a.totalContributions || 0))
-      .slice(0, 5);
-    const states = cycleData
-      .filter(r => (r.geographyType || "").toLowerCase() === "state")
-      .sort((a, b) => (b.totalContributions || 0) - (a.totalContributions || 0))
-      .slice(0, 5);
-    return [...districts.map(d => ({ ...d, _type: "District" })), ...states.map(s => ({ ...s, _type: "State" }))];
+      .slice(0, 10);
   }, [cycleData]);
 
-  // Table data with sorting and filtering
-  const tableData = useMemo(() => {
-    let rows = [...cycleData];
-    if (filterType === "district") rows = rows.filter(r => (r.geographyType || "").toLowerCase() === "district");
-    if (filterType === "state") rows = rows.filter(r => (r.geographyType || "").toLowerCase() === "state");
-
-    rows.sort((a, b) => {
-      let va = a[sortCol] || 0;
-      let vb = b[sortCol] || 0;
-      if (sortCol === "geographyId") { va = a.geographyId || ""; vb = b.geographyId || ""; }
-      if (sortCol === "geographyType") { va = a.geographyType || ""; vb = b.geographyType || ""; }
-      if (typeof va === "string") return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
-      return sortDir === "asc" ? va - vb : vb - va;
-    });
-    return rows;
-  }, [cycleData, filterType, sortCol, sortDir]);
-
-  const handleSort = col => {
-    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortCol(col); setSortDir("desc"); }
-  };
-
-  const sortArrow = col => sortCol === col ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : "";
-
-  // Insight callout — build from data
+  // Insight callout
   const insightText = useMemo(() => {
     const cycleRows = fec.filter(r => String(r.electionCycle) === "2024");
     const totalAll = cycleRows.reduce((s, r) => s + (r.totalContributions || 0), 0);
-    const topDistricts = cycleRows
-      .filter(r => (r.geographyType || "").toLowerCase() === "district")
+    const topEntries = [...cycleRows]
       .sort((a, b) => (b.totalContributions || 0) - (a.totalContributions || 0))
       .slice(0, 3);
-    if (totalAll === 0 || topDistricts.length === 0) return null;
-    const topList = topDistricts.map(d => `${d.geographyId} (${fmtDollar(d.totalContributions)})`).join(", ");
+    if (totalAll === 0 || topEntries.length === 0) return null;
+    const topList = topEntries.map(d => `${d.geographyId} (${fmtDollar(d.totalContributions)})`).join(", ");
     return `In 2024, Indian American donors contributed an estimated ${fmtDollar(totalAll)} across tracked geographies, led by ${topList}. Presidential cycles average 3\u20134\u00D7 midterm contribution volumes.`;
   }, [fec]);
 
-  // Compute all-time total for headline
+  // All-time total for headline
   const allTimeTotal = useMemo(() => {
     const byCycle = {};
     fec.forEach(r => {
@@ -199,18 +170,13 @@ export function PoliticalEconomy({ data, isMobile }) {
       <div style={{ fontSize: 10, color: C.textMuted, marginTop: -14, marginBottom: 16 }}>* Presidential cycle</div>
 
       {/* Summary stats */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
         <StatCard label={`Total (${selectedCycle})`} value={fmtDollar(stats.total)} />
         <StatCard label="Est. Donors" value={stats.donors > 0 ? stats.donors.toLocaleString() : "—"} />
         <StatCard label="Transactions" value={stats.txns > 0 ? stats.txns.toLocaleString() : "—"} />
-        <StatCard
-          label="Top District"
-          value={stats.topDistrict ? stats.topDistrict.geographyId : "—"}
-          sub={stats.topDistrict ? fmtDollar(stats.topDistrict.totalContributions) : undefined}
-        />
       </div>
 
-      {/* Chart 1 — Trend Line */}
+      {/* Trend Line */}
       {trendData.length > 1 && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ padding: "16px 18px" }}>
@@ -251,16 +217,16 @@ export function PoliticalEconomy({ data, isMobile }) {
         </Card>
       )}
 
-      {/* Chart 2 — Geographic breakdown */}
-      {geoBreakdown.length > 0 && (
+      {/* Top Geographies — bar chart */}
+      {topGeos.length > 0 && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ padding: "16px 18px" }}>
             <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
               Top Geographies — {selectedCycle}
             </h4>
-            <div style={{ width: "100%", minHeight: Math.max(geoBreakdown.length * 32 + 30, 120) }}>
-              <ResponsiveContainer width="100%" height={Math.max(geoBreakdown.length * 32 + 30, 120)}>
-                <BarChart data={geoBreakdown} layout="vertical" margin={{ top: 5, right: 20, left: isMobile ? 50 : 70, bottom: 0 }}>
+            <div style={{ width: "100%", minHeight: Math.max(topGeos.length * 32 + 30, 120) }}>
+              <ResponsiveContainer width="100%" height={Math.max(topGeos.length * 32 + 30, 120)}>
+                <BarChart data={topGeos} layout="vertical" margin={{ top: 5, right: 20, left: isMobile ? 50 : 70, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.borderLight} horizontal={false} />
                   <XAxis
                     type="number"
@@ -300,89 +266,11 @@ export function PoliticalEconomy({ data, isMobile }) {
         </Card>
       )}
 
-      {/* Table */}
-      {cycleData.length > 0 && (
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
-                Full Breakdown — {selectedCycle}
-              </h4>
-              <div style={{ display: "flex", gap: 4 }}>
-                {[{ key: "all", label: "All" }, { key: "district", label: "Districts" }, { key: "state", label: "States" }].map(f => (
-                  <button
-                    key={f.key}
-                    onClick={() => setFilterType(f.key)}
-                    style={{
-                      padding: "4px 10px", fontSize: 10, fontWeight: 600,
-                      fontFamily: font.body,
-                      border: `1px solid ${filterType === f.key ? C.action : C.borderLight}`,
-                      borderRadius: 4, cursor: "pointer",
-                      background: filterType === f.key ? C.action : C.surface,
-                      color: filterType === f.key ? "#FFFFFF" : C.textSecondary,
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: font.body }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                    {[
-                      { key: "geographyId", label: "Geography" },
-                      { key: "geographyType", label: "Type" },
-                      { key: "totalContributions", label: "Contributions ($)" },
-                      { key: "transactionCount", label: "Transactions" },
-                      { key: "estimatedDonors", label: "Est. Donors" },
-                    ].map(col => (
-                      <th
-                        key={col.key}
-                        onClick={() => handleSort(col.key)}
-                        style={{
-                          padding: "8px 6px", textAlign: col.key === "geographyId" || col.key === "geographyType" ? "left" : "right",
-                          cursor: "pointer", fontWeight: 700, fontSize: 10, textTransform: "uppercase",
-                          letterSpacing: 0.5, color: C.textMuted, fontFamily: font.mono,
-                          whiteSpace: "nowrap", userSelect: "none",
-                        }}
-                      >
-                        {col.label}{sortArrow(col.key)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
-                      <td style={{ padding: "6px", fontWeight: 600, color: C.navy }}>{row.geographyId}</td>
-                      <td style={{ padding: "6px", color: C.textSecondary, textTransform: "capitalize" }}>{row.geographyType}</td>
-                      <td style={{ padding: "6px", textAlign: "right", fontFamily: font.mono, fontWeight: 600, color: C.navy }}>{fmtDollar(row.totalContributions || 0)}</td>
-                      <td style={{ padding: "6px", textAlign: "right", fontFamily: font.mono, color: C.textSecondary }}>{(row.transactionCount || 0).toLocaleString()}</td>
-                      <td style={{ padding: "6px", textAlign: "right", fontFamily: font.mono, color: C.textSecondary }}>{(row.estimatedDonors || 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                  {tableData.length === 0 && (
-                    <tr>
-                      <td colSpan={5} style={{ padding: "16px", textAlign: "center", color: C.textMuted, fontSize: 12 }}>
-                        No data for this filter selection.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
-      )}
-
       <MethodologyNote>
         Indian surname filtering of FEC individual contributions data. Surname list (~150 high-precision names)
         derived from Census 2010 frequently occurring surnames, validated against community lists following
         Ramakrishnan et al. (AAPI Data) methodology. False positive rate ~8–12%; misses Indian Americans
-        with non-South-Asian surnames. All figures are estimates. FEC data covers contributions &gt;$200 only —
+        with non-Indian surnames. All figures are estimates. FEC data covers contributions &gt;$200 only —
         small-dollar donors are not represented.
       </MethodologyNote>
     </div>
