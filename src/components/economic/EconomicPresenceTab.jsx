@@ -11,7 +11,7 @@ const SUB_SECTIONS = [
   { key: "immigration", label: "Immigration Pipeline" },
   { key: "wealth", label: "Household Wealth" },
   { key: "business", label: "Business Ownership" },
-  { key: "research", label: "Research & Innovation" },
+  { key: "research", label: "Scientific Research" },
   { key: "political", label: "Political Economy" },
 ];
 

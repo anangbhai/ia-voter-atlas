@@ -32,19 +32,15 @@ function StatCard({ label, value, note, badge }) {
 }
 
 export function BusinessOwnership({ data, districtId, isMobile }) {
-  const acs = data.acs || [];
   const abs = data.abs || [];
   const sba = data.sba || [];
 
-  const acsRow = acs.length > 0 ? acs[0] : null;
   const absRow = abs.length > 0 ? abs[0] : null;
 
-  // TEMP DEBUG: log first row to find actual column names
-  if (acsRow) console.log("[DEBUG] acs_econ_by_district first row keys:", Object.keys(acsRow), acsRow);
-  if (absRow) console.log("[DEBUG] abs_by_district first row keys:", Object.keys(absRow), absRow);
-  if (sba.length > 0) console.log("[DEBUG] sba_loans first row keys:", Object.keys(sba[0]), sba[0]);
+  // ABS data — asianOwnedFirms is the real column
+  const firmCount = absRow?.asianOwnedFirms || 0;
 
-  // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount, dataYear
+  // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount
   const sbaTotal = useMemo(() => {
     const total = { loans7a: 0, loans504: 0, amount7a: 0, amount504: 0 };
     sba.forEach(r => {
@@ -58,7 +54,7 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
     return total;
   }, [sba]);
 
-  const hasAnyData = acsRow || absRow || sba.length > 0;
+  const hasAnyData = absRow || sba.length > 0;
 
   if (!hasAnyData) {
     return (
@@ -83,21 +79,12 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
         </h3>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
         <StatCard
-          label="Self-Employed Workers"
-          badge={<SourceBadge type="exact" label="Census ACS 2023" />}
-          value={(acsRow?.selfEmployed || acsRow?.selfEmployedCount || 0).toLocaleString()}
-          note={acsRow?.selfEmploymentRate ? `${(acsRow.selfEmploymentRate * 100).toFixed(1)}% of Indian American labor force` : "Indian Americans in district"}
-        />
-
-        <StatCard
-          label="Employer-Owned Firms"
+          label="Asian-Owned Employer Firms"
           badge={<SourceBadge type="exact" label="Census ABS 2023" />}
-          value={(absRow?.firmCount || absRow?.businesses || 0).toLocaleString()}
-          note={absRow?.totalEmployees || absRow?.employees
-            ? `${(absRow.totalEmployees || absRow.employees).toLocaleString()} employees · ${fmtDollar(absRow.annualPayroll || absRow.payroll || 0)} payroll`
-            : "Indian American-owned firms"}
+          value={firmCount.toLocaleString()}
+          note="All Asian ethnicities — ABS does not break out Asian Indian separately"
         />
 
         <StatCard
@@ -116,10 +103,11 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
       </div>
 
       <MethodologyNote>
-        Three methodologies with different precision levels are combined here.
-        ACS and ABS use exact federal race classification — these are counts, not estimates.
-        SBA uses surname analysis on business names, which significantly undercounts firms where the business name
-        does not contain the owner's surname. Treat SBA figures as minimums.
+        Two methodologies with different precision levels are combined here.
+        ABS uses exact federal race classification but reports "Asian" as a single category — Asian Indian
+        is not broken out separately. SBA uses surname analysis on business names, which significantly
+        undercounts firms where the business name does not contain the owner's surname.
+        Treat SBA figures as minimums.
       </MethodologyNote>
     </div>
   );

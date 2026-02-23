@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceDot } from "recharts";
 import { C, font } from "../../lib/theme.js";
 import { useEconomicData } from "../../hooks/useEconomicData.js";
@@ -191,7 +191,8 @@ function UscisPanel({ isMobile }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PERM Data Panel (existing logic extracted from monolith)
+// PERM Data Panel — leads with wage & employer data,
+// trend chart collapsed for researchers
 // ═══════════════════════════════════════════════════════════
 export function ImmigrationPipeline({
   permDistrictData, permStateData,
@@ -201,6 +202,7 @@ export function ImmigrationPipeline({
   permSubTab, setPermSubTab,
   isMobile,
 }) {
+  const [trendExpanded, setTrendExpanded] = useState(false);
   const permDistricts = useMemo(() => [...new Set(permDistrictData.map(r => r.districtId))].sort(), [permDistrictData]);
   const permYears = useMemo(() => [...new Set(permDistrictData.map(r => r.dataFiscalYear))].sort(), [permDistrictData]);
   const permYearsDesc = useMemo(() => [...permYears].reverse(), [permYears]);
@@ -213,11 +215,6 @@ export function ImmigrationPipeline({
   const avgWage = latestRows.length > 0 ? Math.round(latestRows.reduce((s, r) => s + r.avgOfferedWage, 0) / latestRows.length) : null;
   const cumulative = {};
   permDistrictData.forEach(r => { cumulative[r.districtId] = (cumulative[r.districtId] || 0) + (r.permIndia || 0); });
-  const topDist = Object.entries(cumulative).sort((a, b) => b[1] - a[1])[0];
-
-  // Trend data for selected district
-  const trendRows = permDistrictData.filter(r => r.districtId === permDistrict).sort((a, b) => a.dataFiscalYear.localeCompare(b.dataFiscalYear));
-  const trendCumTotal = trendRows.reduce((s, r) => s + (r.permIndia || 0), 0);
 
   // Wage comparison
   const wageByDist = {};
@@ -234,7 +231,18 @@ export function ImmigrationPipeline({
     .sort((a, b) => b.ratio - a.ratio);
   const wageMax = wageEntries.length > 0 ? Math.max(...wageEntries.map(e => Math.max(e.perm, e.local))) : 1;
 
-  // Employers
+  // All employers across all districts for hero display
+  const topEmployersAll = useMemo(() => {
+    const counts = {};
+    permDistrictData.forEach(r => {
+      (r.topEmployers || []).forEach(emp => {
+        counts[emp] = (counts[emp] || 0) + 1;
+      });
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name]) => name);
+  }, [permDistrictData]);
+
+  // Employers for selected district/year
   const empState = permEmpDistrict.split("-")[0];
   let empRow = permDistrictData.find(r => r.districtId === permEmpDistrict && r.dataFiscalYear === permEmpYear);
   let empSource = "district";
@@ -242,13 +250,16 @@ export function ImmigrationPipeline({
   const employers = empRow?.topEmployers || [];
   const occupations = empRow?.topOccupations || [];
 
+  // Trend data for selected district (for collapsed section)
+  const trendRows = permDistrictData.filter(r => r.districtId === permDistrict).sort((a, b) => a.dataFiscalYear.localeCompare(b.dataFiscalYear));
+  const trendCumTotal = trendRows.reduce((s, r) => s + (r.permIndia || 0), 0);
+
   // Leaderboard
   const leaderboard = Object.entries(cumulative).sort((a, b) => b[1] - a[1]);
   const lbMax = leaderboard[0] ? leaderboard[0][1] : 1;
 
-  // Sub-tabs
+  // Sub-tabs — wages & employers first, then rankings
   const permSubs = [
-    { key: "trend", label: "Trend" },
     { key: "wages", label: "Wages" },
     { key: "employers", label: "Who's Hiring" },
     { key: "rankings", label: "Rankings" },
@@ -278,7 +289,7 @@ export function ImmigrationPipeline({
           </div>
         </Card>
 
-        {/* Summary strip */}
+        {/* Summary strip — lead with wage as hero stat */}
         {permDistricts.length === 0 ? (
           <Card>
             <div style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -291,22 +302,26 @@ export function ImmigrationPipeline({
           </Card>
         ) : (
         <>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-          <Card>
-            <div style={{ padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Total India PERM</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{totalIndia.toLocaleString()}</div>
-              <div style={{ fontSize: 10, color: C.textSecondary }}>{permDistricts.length} districts</div>
+        {/* Hero stats — wage and employer lead */}
+        <Card style={{ marginBottom: 16, borderLeft: `4px solid ${C.saffron}` }}>
+          <div style={{ padding: "16px 20px" }}>
+            <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: C.navy }}>
+              {avgWage ? `$${avgWage.toLocaleString()}` : "—"}
             </div>
-          </Card>
-          <Card>
-            <div style={{ padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Avg Offered Wage</div>
-              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "2px 0" }}>{avgWage ? `$${avgWage.toLocaleString()}` : "—"}</div>
-              <div style={{ fontSize: 10, color: C.textSecondary }}>{latestYear || "Latest"}</div>
+            <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 2 }}>
+              average offered wage ({latestYear || "latest year"})
             </div>
-          </Card>
-        </div>
+            {topEmployersAll.length > 0 && (
+              <div style={{ fontSize: 12, color: C.textSecondary, marginTop: 10, lineHeight: 1.6 }}>
+                <strong style={{ color: C.navy }}>Top employers:</strong>{" "}
+                {topEmployersAll.join(", ")}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
+              {totalIndia.toLocaleString()} total India-born PERM certifications across {permDistricts.length} districts
+            </div>
+          </div>
+        </Card>
 
         {/* Sub-tabs */}
         <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 16, overflowX: "auto" }}>
@@ -320,83 +335,6 @@ export function ImmigrationPipeline({
             }}>{s.label}</button>
           ))}
         </div>
-
-        {/* TREND SUB-TAB */}
-        {permSubTab === "trend" && (
-          <Card>
-            <div style={{ padding: "16px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
-                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Certifications Over Time</h4>
-                <select value={permDistrict} onChange={e => setPermDistrict(e.target.value)} style={{
-                  padding: "4px 8px", fontSize: 11, fontFamily: font.mono, fontWeight: 600,
-                  border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
-                }}>
-                  {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <p style={{ fontSize: 11, color: C.textSecondary, margin: "0 0 14px" }}>
-                {permDistrict} — {trendCumTotal.toLocaleString()} cumulative
-              </p>
-
-              {/* Bar chart */}
-              {(() => {
-                const chartH = 160;
-                const barArea = chartH - 10;
-                const rawMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
-                const niceMax = rawMax <= 100 ? Math.ceil(rawMax / 20) * 20
-                  : rawMax <= 500 ? Math.ceil(rawMax / 100) * 100
-                  : rawMax <= 2000 ? Math.ceil(rawMax / 500) * 500
-                  : rawMax <= 10000 ? Math.ceil(rawMax / 2000) * 2000
-                  : Math.ceil(rawMax / 5000) * 5000;
-                const tickCount = 4;
-                const ticks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(niceMax * (tickCount - i) / tickCount));
-
-                return (
-                  <div style={{ display: "flex", gap: 0 }}>
-                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, paddingRight: 6, flexShrink: 0 }}>
-                      {ticks.map(v => (
-                        <div key={v} style={{ fontSize: 8, fontFamily: font.mono, color: C.textMuted, textAlign: "right", lineHeight: 1, minWidth: 24 }}>{fmtK(v)}</div>
-                      ))}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-                      {ticks.map((v, i) => (
-                        <div key={i} style={{ position: "absolute", top: `${(i / tickCount) * 100}%`, left: 0, right: 0, height: 1, background: i === tickCount ? C.border : C.borderLight, opacity: i === tickCount ? 0.5 : 0.6 }} />
-                      ))}
-                      <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 1 : 3, height: chartH, position: "relative" }}>
-                        {trendRows.map(r => {
-                          const total = r.permCertified || 0;
-                          const india = r.permIndia || 0;
-                          const totalH = niceMax > 0 ? Math.max(total / niceMax * barArea, total > 0 ? 3 : 0) : 0;
-                          const indiaH = niceMax > 0 && total > 0 ? Math.max(india / niceMax * barArea, india > 0 ? 3 : 0) : 0;
-                          return (
-                            <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
-                              title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
-                              <div style={{ width: "100%", maxWidth: 28, position: "relative", height: totalH }}>
-                                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
-                                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-              <div style={{ display: "flex", gap: isMobile ? 1 : 3, marginTop: 4, paddingLeft: 30 }}>
-                {trendRows.map(r => (
-                  <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: 7, fontFamily: font.mono, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {r.dataFiscalYear.replace("FY", "'")}
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 10, color: C.textSecondary }}>
-                <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.saffron, borderRadius: 2, marginRight: 3, verticalAlign: "middle" }} /> India-born</span>
-                <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.navyLight, borderRadius: 2, marginRight: 3, verticalAlign: "middle" }} /> All</span>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* WAGES SUB-TAB */}
         {permSubTab === "wages" && (
@@ -516,6 +454,99 @@ export function ImmigrationPipeline({
             </div>
           </Card>
         )}
+
+        {/* Collapsed trend section for researchers */}
+        <div style={{ marginTop: 16 }}>
+          <button
+            onClick={() => setTrendExpanded(!trendExpanded)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "8px 0",
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 600, color: C.textMuted, fontFamily: font.body,
+            }}
+          >
+            <span style={{ fontSize: 10, transition: "transform 0.2s", transform: trendExpanded ? "rotate(90deg)" : "rotate(0)" }}>
+              {"\u25B6"}
+            </span>
+            Certification trend by district (for researchers)
+          </button>
+
+          {trendExpanded && (
+            <Card style={{ marginTop: 8 }}>
+              <div style={{ padding: "16px 18px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Certifications Over Time</h4>
+                  <select value={permDistrict} onChange={e => setPermDistrict(e.target.value)} style={{
+                    padding: "4px 8px", fontSize: 11, fontFamily: font.mono, fontWeight: 600,
+                    border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
+                  }}>
+                    {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <p style={{ fontSize: 11, color: C.textSecondary, margin: "0 0 14px" }}>
+                  {permDistrict} — {trendCumTotal.toLocaleString()} cumulative
+                </p>
+
+                {/* Bar chart */}
+                {(() => {
+                  const chartH = 160;
+                  const barArea = chartH - 10;
+                  const rawMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
+                  const niceMax = rawMax <= 100 ? Math.ceil(rawMax / 20) * 20
+                    : rawMax <= 500 ? Math.ceil(rawMax / 100) * 100
+                    : rawMax <= 2000 ? Math.ceil(rawMax / 500) * 500
+                    : rawMax <= 10000 ? Math.ceil(rawMax / 2000) * 2000
+                    : Math.ceil(rawMax / 5000) * 5000;
+                  const tickCount = 4;
+                  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(niceMax * (tickCount - i) / tickCount));
+
+                  return (
+                    <div style={{ display: "flex", gap: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, paddingRight: 6, flexShrink: 0 }}>
+                        {ticks.map(v => (
+                          <div key={v} style={{ fontSize: 8, fontFamily: font.mono, color: C.textMuted, textAlign: "right", lineHeight: 1, minWidth: 24 }}>{fmtK(v)}</div>
+                        ))}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                        {ticks.map((v, i) => (
+                          <div key={i} style={{ position: "absolute", top: `${(i / tickCount) * 100}%`, left: 0, right: 0, height: 1, background: i === tickCount ? C.border : C.borderLight, opacity: i === tickCount ? 0.5 : 0.6 }} />
+                        ))}
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 1 : 3, height: chartH, position: "relative" }}>
+                          {trendRows.map(r => {
+                            const total = r.permCertified || 0;
+                            const india = r.permIndia || 0;
+                            const totalH = niceMax > 0 ? Math.max(total / niceMax * barArea, total > 0 ? 3 : 0) : 0;
+                            const indiaH = niceMax > 0 && total > 0 ? Math.max(india / niceMax * barArea, india > 0 ? 3 : 0) : 0;
+                            return (
+                              <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
+                                title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
+                                <div style={{ width: "100%", maxWidth: 28, position: "relative", height: totalH }}>
+                                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
+                                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div style={{ display: "flex", gap: isMobile ? 1 : 3, marginTop: 4, paddingLeft: 30 }}>
+                  {trendRows.map(r => (
+                    <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: 7, fontFamily: font.mono, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.dataFiscalYear.replace("FY", "'")}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 10, color: C.textSecondary }}>
+                  <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.saffron, borderRadius: 2, marginRight: 3, verticalAlign: "middle" }} /> India-born</span>
+                  <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.navyLight, borderRadius: 2, marginRight: 3, verticalAlign: "middle" }} /> All</span>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
         </>
         )}
       </div>

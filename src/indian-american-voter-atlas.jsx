@@ -523,7 +523,7 @@ export default function IndianAmericanVoterAtlas() {
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
   const [mapColorMode, setMapColorMode] = useState("density");
-  const [permSubTab, setPermSubTab] = useState("trend");
+  const [permSubTab, setPermSubTab] = useState("wages");
   const [permDistrict, setPermDistrict] = useState("TX-22");
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
   const [permEmpYear, setPermEmpYear] = useState("");

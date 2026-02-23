@@ -115,6 +115,20 @@ export function PoliticalEconomy({ data, isMobile }) {
     return `In 2024, South Asian donors contributed an estimated ${fmtDollar(totalAll)} across tracked geographies, led by ${topList}. Presidential cycles average 3\u20134\u00D7 midterm contribution volumes.`;
   }, [fec]);
 
+  // Compute all-time total for headline
+  const allTimeTotal = useMemo(() => {
+    const byCycle = {};
+    fec.forEach(r => {
+      const c = String(r.electionCycle);
+      if (!c) return;
+      byCycle[c] = (byCycle[c] || 0) + (r.totalContributions || 0);
+    });
+    return Object.values(byCycle).reduce((s, v) => s + v, 0);
+  }, [fec]);
+
+  const cycleCount = availableCycles.length;
+  const yearRangeStr = availableCycles.length > 0 ? `${availableCycles[0]}–${availableCycles[availableCycles.length - 1]}` : "";
+
   if (fec.length === 0) {
     return (
       <Card>
@@ -140,6 +154,18 @@ export function PoliticalEconomy({ data, isMobile }) {
           Federal Election Commission Individual Contributions, 2008–2024
         </p>
       </div>
+
+      {/* Headline summary callout */}
+      <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.saffron}` }}>
+        <div style={{ padding: "16px 20px" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.navy, lineHeight: 1.6 }}>
+            Indian American donors contributed an estimated {fmtDollar(allTimeTotal)}+ to federal campaigns across {cycleCount} election cycles ({yearRangeStr}).
+          </div>
+          <div style={{ fontSize: 13, color: C.textSecondary, marginTop: 6, lineHeight: 1.6 }}>
+            Presidential cycles average 3–4× midterm volumes. 2020 and 2024 each exceeded $60M.
+          </div>
+        </div>
+      </Card>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <SourceBadge type="surname" label="Surname estimate (~88-92%)" />
