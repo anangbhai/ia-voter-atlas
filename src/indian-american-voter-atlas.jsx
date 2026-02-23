@@ -383,7 +383,7 @@ function CtrlScrollZoom() {
   return null;
 }
 
-function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
+function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile, epiScores = {} }) {
   const bounds = useMemo(() => {
     const coords = districts.map(d => DISTRICT_COORDS[d.id]).filter(Boolean);
     return coords.length ? coords : [[25, -125], [50, -65]];
@@ -786,6 +786,7 @@ export default function IndianAmericanVoterAtlas() {
                 selectedId={expandedRow}
                 onSelect={(id) => setExpandedRow(expandedRow === id ? null : id)}
                 isMobile={isMobile}
+                epiScores={epiScores}
               />
               <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
                 {mapColorMode === "density" && <>

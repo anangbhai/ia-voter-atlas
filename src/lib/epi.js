@@ -19,6 +19,7 @@
  * If all values are the same, returns 50 for all.
  */
 function minMaxNormalize(values) {
+  if (values.length === 0) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   if (max === min) return values.map(() => 50);
