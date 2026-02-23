@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { C, font } from "../../lib/theme.js";
 import { useEconomicData } from "../../hooks/useEconomicData.js";
 import { ImmigrationPipeline } from "./ImmigrationPipeline.jsx";
@@ -23,12 +23,30 @@ const fmtDollar = v => {
 };
 
 const SUB_SECTIONS = [
-  { key: "overview", label: "Overview" },
-  { key: "immigration", label: "Immigration Pipeline" },
-  { key: "wealth", label: "Household Wealth" },
-  { key: "business", label: "Business Ownership" },
-  { key: "research", label: "Scientific Research" },
-  { key: "political", label: "Political Economy" },
+  {
+    key: "overview", label: "Overview",
+    description: "High-level summary of Indian American economic presence — PERM visa totals, household income, business formation, research grants, and political contributions across key Congressional districts.",
+  },
+  {
+    key: "immigration", label: "Immigration Pipeline",
+    description: "DOL PERM labor certification data (FY2008–2024) showing India-born permanent resident applications by Congressional district — a leading indicator of skilled immigrant concentration and local employer demand.",
+  },
+  {
+    key: "wealth", label: "Household Wealth",
+    description: "HMDA mortgage origination data revealing Indian American household purchasing power, homeownership rates, and geographic concentration across U.S. Congressional districts.",
+  },
+  {
+    key: "business", label: "Business Ownership",
+    description: "SBA loan data and business formation statistics documenting Indian American entrepreneurship — from small businesses to tech startups — by Congressional district.",
+  },
+  {
+    key: "research", label: "Scientific Research",
+    description: "NIH and federal grant data quantifying Indian American contributions to academic research and innovation, broken down by Congressional district and institution.",
+  },
+  {
+    key: "political", label: "Political Economy",
+    description: "FEC campaign finance data tracking Indian American political giving: top donors, top recipients, PAC activity, and district-level contribution patterns across election cycles.",
+  },
 ];
 
 // ─── Executive Summary ──────────────────────────────────────
@@ -224,22 +242,23 @@ export function EconomicPresenceTab({
   permEmpDistrict, setPermEmpDistrict,
   permEmpYear, setPermEmpYear,
   permSubTab, setPermSubTab,
+  activeSection, onSectionChange,
   isMobile,
 }) {
-  const [activeSection, setActiveSection] = useState("overview");
   const economicData = useEconomicData();
+  const currentSection = SUB_SECTIONS.find(s => s.key === activeSection) ?? SUB_SECTIONS[0];
 
   return (
     <div>
       {/* Sub-navigation pills */}
       <div style={{
-        display: "flex", gap: 8, marginBottom: 24, overflowX: "auto",
+        display: "flex", gap: 8, marginBottom: 12, overflowX: "auto",
         WebkitOverflowScrolling: "touch", paddingBottom: 2,
       }}>
         {SUB_SECTIONS.map(s => (
           <button
             key={s.key}
-            onClick={() => setActiveSection(s.key)}
+            onClick={() => onSectionChange(s.key)}
             style={{
               padding: isMobile ? "8px 14px" : "8px 18px",
               fontSize: isMobile ? 11 : 13,
@@ -259,13 +278,30 @@ export function EconomicPresenceTab({
         ))}
       </div>
 
+      {/* SEO info card — describes active subtab for users and search engines */}
+      <div style={{
+        background: "linear-gradient(135deg, #F0F4FF 0%, #F8F9FF 100%)",
+        border: "1px solid #D1D9F0",
+        borderRadius: 8,
+        padding: isMobile ? "10px 14px" : "10px 16px",
+        marginBottom: 20,
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+      }}>
+        <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.5 }}>ℹ</span>
+        <p style={{ margin: 0, fontSize: isMobile ? 12 : 13, color: "#3A4A6B", lineHeight: 1.6 }}>
+          {currentSection.description}
+        </p>
+      </div>
+
       {/* Section content */}
       {activeSection === "overview" && (
         <OverviewSummary
           economicData={economicData}
           permDistrictData={permDistrictData}
           isMobile={isMobile}
-          onNavigate={setActiveSection}
+          onNavigate={onSectionChange}
         />
       )}
 
