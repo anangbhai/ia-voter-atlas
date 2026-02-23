@@ -2033,7 +2033,7 @@ export default function IndianAmericanVoterAtlas() {
           <div style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, lineHeight: 1.8 }}>
             Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, HMDA, ABS, SBA, NIH, AAPI Data, FBI UCR, DOL PERM<br />
             Methodology: Community Density Index v1.0 · Persuasion Index v1.0 · Not affiliated with any political campaign or party<br />
-            Published by <span style={{ color: C.saffronText }}>Anang Mittal</span> · Built for civic engagement and public interest research<br />
+            Published by <a href="https://www.anangmittal.com" target="_blank" rel="noopener noreferrer" style={{ color: C.saffronText, textDecoration: "none" }}>Anang Mittal</a> · Built for civic engagement and public interest research<br />
             <a href="https://www.akiramode.com/launching-the-indian-american-voter-atlas/" target="_blank" rel="noopener noreferrer" style={{ color: C.action, textDecoration: "none" }}>Read the launch post →</a>
           </div>
           <div style={{ marginTop: 12 }}>
