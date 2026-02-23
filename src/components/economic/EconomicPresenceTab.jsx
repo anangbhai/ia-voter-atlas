@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { C, font } from "../../lib/theme.js";
+import { useEconomicData } from "../../hooks/useEconomicData.js";
 import { ImmigrationPipeline } from "./ImmigrationPipeline.jsx";
+import { HouseholdWealth } from "./HouseholdWealth.jsx";
+import { BusinessOwnership } from "./BusinessOwnership.jsx";
 
 const SUB_SECTIONS = [
   { key: "immigration", label: "Immigration Pipeline" },
@@ -19,6 +22,7 @@ export function EconomicPresenceTab({
   isMobile,
 }) {
   const [activeSection, setActiveSection] = useState("immigration");
+  const economicData = useEconomicData();
 
   return (
     <div>
@@ -68,23 +72,11 @@ export function EconomicPresenceTab({
       )}
 
       {activeSection === "wealth" && (
-        <div style={{
-          padding: "40px 20px", textAlign: "center",
-          background: C.surfaceAlt, borderRadius: 10, border: `1px solid ${C.borderLight}`,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Household Wealth</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>HMDA mortgage data — coming in next deploy</div>
-        </div>
+        <HouseholdWealth data={economicData} isMobile={isMobile} />
       )}
 
       {activeSection === "business" && (
-        <div style={{
-          padding: "40px 20px", textAlign: "center",
-          background: C.surfaceAlt, borderRadius: 10, border: `1px solid ${C.borderLight}`,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Business Ownership</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>ACS, ABS & SBA data — coming in next deploy</div>
-        </div>
+        <BusinessOwnership data={economicData} isMobile={isMobile} />
       )}
 
       {activeSection === "research" && (
