@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { supaFetch, toCamel } from "./lib/supabase.js";
 import { C, font } from "./lib/theme.js";
 import { EconomicPresenceTab } from "./components/economic/EconomicPresenceTab.jsx";
+import { useEconomicData } from "./hooks/useEconomicData.js";
 
 const CONTACT_EMAIL = "anangbhai+voteratlas@gmail.com";
 
@@ -545,6 +546,7 @@ export default function IndianAmericanVoterAtlas() {
   const [precinctSwings, setPrecinctSwings] = useState(PRECINCT_SWINGS);
   const [permDistrictData, setPermDistrictData] = useState([]);
   const [permStateData, setPermStateData] = useState([]);
+  const econData = useEconomicData();
 
   useEffect(() => { setLoaded(true); }, []);
 
@@ -915,13 +917,29 @@ export default function IndianAmericanVoterAtlas() {
                     <DensityBar score={d.densityScore} />
                     <PersuasionBar score={d.persuasionScore} />
                   </div>
-                  {expandedRow === d.id && (
-                    <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
-                      <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
-                      {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
-                      <br />{d.notes}
-                    </div>
-                  )}
+                  {expandedRow === d.id && (() => {
+                    const distState = d.id.split("-")[0];
+                    const hmdaRow = econData.hmda.find(r => r.districtId === d.id);
+                    const acsRow = econData.acs.find(r => r.districtId === d.id);
+                    const fecRows = econData.fec.filter(r => r.geographyId === d.id && String(r.electionCycle) === "2024");
+                    const fecTotal = fecRows.reduce((s, r) => s + (r.totalContributions || 0), 0);
+                    const hasEcon = hmdaRow || acsRow || fecTotal > 0;
+                    return (
+                      <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                        <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
+                        {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
+                        <br />{d.notes}
+                        {hasEcon && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
+                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Economic:</span>
+                            {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA originations:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originationCount || hmdaRow.totalOriginations || 0).toLocaleString()}</strong></span>}
+                            {acsRow && <span><span style={{ color: C.textMuted }}>Self-employed:</span> <strong style={{ color: C.navy }}>{(acsRow.selfEmployed || acsRow.selfEmployedCount || 0).toLocaleString()}</strong></span>}
+                            {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC 2024:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
               </>}
@@ -999,13 +1017,28 @@ export default function IndianAmericanVoterAtlas() {
                       </div>
 
                       {/* Expanded detail */}
-                      {expandedRow === d.id && (
-                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
-                          <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
-                          {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
-                          <br />{d.notes}
-                        </div>
-                      )}
+                      {expandedRow === d.id && (() => {
+                        const hmdaRow = econData.hmda.find(r => r.districtId === d.id);
+                        const acsRow = econData.acs.find(r => r.districtId === d.id);
+                        const fecRows = econData.fec.filter(r => r.geographyId === d.id && String(r.electionCycle) === "2024");
+                        const fecTotal = fecRows.reduce((s, r) => s + (r.totalContributions || 0), 0);
+                        const hasEcon = hmdaRow || acsRow || fecTotal > 0;
+                        return (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
+                            <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
+                            {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
+                            <br />{d.notes}
+                            {hasEcon && (
+                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.borderLight}`, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11 }}>
+                                <span style={{ fontFamily: font.mono, fontSize: 9, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Econ:</span>
+                                {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originationCount || hmdaRow.totalOriginations || 0).toLocaleString()}</strong></span>}
+                                {acsRow && <span><span style={{ color: C.textMuted }}>Self-emp:</span> <strong style={{ color: C.navy }}>{(acsRow.selfEmployed || acsRow.selfEmployedCount || 0).toLocaleString()}</strong></span>}
+                                {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC '24:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -1082,12 +1115,35 @@ export default function IndianAmericanVoterAtlas() {
                         </div>
                       </>
                     )}
-                    {expandedSenate === race.state && (
-                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderLight}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
-                        <strong style={{ color: C.text }}>Key metros:</strong> {race.keyMetros}<br />
-                        {race.notes}
-                      </div>
-                    )}
+                    {expandedSenate === race.state && (() => {
+                      const stCode = race.state;
+                      const fecByState = econData.fec.filter(r => r.geographyId === stCode && (r.geographyType || "").toLowerCase() === "state");
+                      const fec2024 = fecByState.find(r => String(r.electionCycle) === "2024");
+                      const fec2022 = fecByState.find(r => String(r.electionCycle) === "2022");
+                      const fec2020 = fecByState.find(r => String(r.electionCycle) === "2020");
+                      const hasFec = fec2024 || fec2022 || fec2020;
+                      return (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderLight}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                          <strong style={{ color: C.text }}>Key metros:</strong> {race.keyMetros}<br />
+                          {race.notes}
+                          {hasFec && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.borderLight}`, fontSize: 12 }}>
+                              <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>South Asian donor contributions: </span>
+                              {[
+                                fec2020 && { year: "2020", amt: fec2020.totalContributions },
+                                fec2022 && { year: "2022", amt: fec2022.totalContributions },
+                                fec2024 && { year: "2024", amt: fec2024.totalContributions },
+                              ].filter(Boolean).map((f, i, arr) => (
+                                <span key={f.year}>
+                                  {f.year}: <strong style={{ color: C.navy }}>${f.amt >= 1000000 ? (f.amt / 1000000).toFixed(1) + "M" : f.amt >= 1000 ? (f.amt / 1000).toFixed(0) + "K" : f.amt}</strong>
+                                  {i < arr.length - 1 && " → "}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Card>
               ))}
