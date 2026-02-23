@@ -624,22 +624,6 @@ export default function IndianAmericanVoterAtlas() {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
-  let sortedDistricts = [...districts];
-  if (filterCompetitive) sortedDistricts = sortedDistricts.filter(d => d.cook2026.includes("Lean") || d.cook2026.includes("Toss") || d.cook2026.includes("Special"));
-  sortedDistricts.sort((a, b) => {
-    let av = a[sortKey], bv = b[sortKey];
-    if (sortKey === "epiScore") { av = (epiScores[a.id]?.score || 0); bv = (epiScores[b.id]?.score || 0); }
-    if (sortKey === "cook2026") { av = ratingOrder[av] ?? 5; bv = ratingOrder[bv] ?? 5; }
-    if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
-
-  let sortedSenate = [...senateRaces].sort((a, b) => {
-    if (senateSortKey === "rating") return (ratingOrder[a.rating] ?? 5) - (ratingOrder[b.rating] ?? 5);
-    if (senateSortKey === "indianPop") return b.indianPop - a.indianPop;
-    return a.state.localeCompare(b.state);
-  });
-
   // PERM cumulative by district for cross-tab reference
   const permCumulative = useMemo(() => {
     const cum = {};
@@ -659,6 +643,22 @@ export default function IndianAmericanVoterAtlas() {
     if (econData.loading || senateRaces.length === 0) return {};
     return computeStateEPI(senateRaces, econData, permCumulative, districts);
   }, [senateRaces, econData, permCumulative, districts]);
+
+  let sortedDistricts = [...districts];
+  if (filterCompetitive) sortedDistricts = sortedDistricts.filter(d => d.cook2026.includes("Lean") || d.cook2026.includes("Toss") || d.cook2026.includes("Special"));
+  sortedDistricts.sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (sortKey === "epiScore") { av = (epiScores[a.id]?.score || 0); bv = (epiScores[b.id]?.score || 0); }
+    if (sortKey === "cook2026") { av = ratingOrder[av] ?? 5; bv = ratingOrder[bv] ?? 5; }
+    if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir === "desc" ? bv - av : av - bv;
+  });
+
+  let sortedSenate = [...senateRaces].sort((a, b) => {
+    if (senateSortKey === "rating") return (ratingOrder[a.rating] ?? 5) - (ratingOrder[b.rating] ?? 5);
+    if (senateSortKey === "indianPop") return b.indianPop - a.indianPop;
+    return a.state.localeCompare(b.state);
+  });
 
   const tabs = [
     { key: "house", label: "House Districts" },
