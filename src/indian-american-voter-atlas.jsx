@@ -15,8 +15,6 @@ function mapDistrict(row) {
   // cook2026 came from cook_2026 → cook2026 ✓
   // cookPvi needs to be cookPVI
   if (d.cookPvi !== undefined) { d.cookPVI = d.cookPvi; delete d.cookPvi; }
-  // GA-07 was redistricted in 2023; override stale Supabase values
-  if (d.id === "GA-07") { d.rep = "Rich McCormick"; d.party = "R"; }
   return d;
 }
 function mapSenate(row) {
