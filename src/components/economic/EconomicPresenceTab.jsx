@@ -4,6 +4,8 @@ import { useEconomicData } from "../../hooks/useEconomicData.js";
 import { ImmigrationPipeline } from "./ImmigrationPipeline.jsx";
 import { HouseholdWealth } from "./HouseholdWealth.jsx";
 import { BusinessOwnership } from "./BusinessOwnership.jsx";
+import { ResearchInnovation } from "./ResearchInnovation.jsx";
+import { PoliticalEconomy } from "./PoliticalEconomy.jsx";
 
 const SUB_SECTIONS = [
   { key: "immigration", label: "Immigration Pipeline" },
@@ -80,23 +82,11 @@ export function EconomicPresenceTab({
       )}
 
       {activeSection === "research" && (
-        <div style={{
-          padding: "40px 20px", textAlign: "center",
-          background: C.surfaceAlt, borderRadius: 10, border: `1px solid ${C.borderLight}`,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Research & Innovation</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>NIH grants & H-1B data — coming in next deploy</div>
-        </div>
+        <ResearchInnovation data={economicData} isMobile={isMobile} />
       )}
 
       {activeSection === "political" && (
-        <div style={{
-          padding: "40px 20px", textAlign: "center",
-          background: C.surfaceAlt, borderRadius: 10, border: `1px solid ${C.borderLight}`,
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Political Economy</div>
-          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 6 }}>FEC contribution data — coming in next deploy</div>
-        </div>
+        <PoliticalEconomy data={economicData} isMobile={isMobile} />
       )}
     </div>
   );
