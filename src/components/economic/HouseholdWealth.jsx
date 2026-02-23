@@ -27,13 +27,18 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
     hmda.forEach(r => {
       const y = r.year || r.dataYear;
       if (!y) return;
-      if (!byYear[y]) byYear[y] = { year: y, originations: 0, totalAmount: 0, count: 0 };
-      byYear[y].originations += r.originationCount || r.originations || 0;
-      byYear[y].totalAmount += r.totalLoanAmount || r.avgLoanAmount || 0;
-      byYear[y].count += 1;
+      if (!byYear[y]) byYear[y] = { year: y, originations: 0, loanAmountSum: 0, loanAmountCount: 0 };
+      byYear[y].originations += r.originationCount || 0;
+      // avgLoanAmount is already a per-row average; weight by origination count for proper aggregation
+      const rowOrig = r.originationCount || 0;
+      const rowAvg = r.avgLoanAmount || 0;
+      if (rowAvg > 0 && rowOrig > 0) {
+        byYear[y].loanAmountSum += rowAvg * rowOrig;
+        byYear[y].loanAmountCount += rowOrig;
+      }
     });
     return Object.values(byYear)
-      .map(d => ({ ...d, avgLoanAmount: d.count > 0 ? Math.round(d.totalAmount / d.count) : 0 }))
+      .map(d => ({ ...d, avgLoanAmount: d.loanAmountCount > 0 ? Math.round(d.loanAmountSum / d.loanAmountCount) : 0 }))
       .sort((a, b) => a.year - b.year);
   }, [hmda]);
 
@@ -51,7 +56,7 @@ export function HouseholdWealth({ data, districtId, isMobile }) {
     hmda.forEach(r => {
       const did = r.districtId;
       if (!did) return;
-      districtTotals[did] = (districtTotals[did] || 0) + (r.originationCount || r.originations || 0);
+      districtTotals[did] = (districtTotals[did] || 0) + (r.originationCount || 0);
     });
     const vals = Object.values(districtTotals);
     return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 0;

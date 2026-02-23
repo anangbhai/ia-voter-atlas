@@ -41,7 +41,7 @@ function UscisPanel({ isMobile }) {
     if (!uscis || uscis.length === 0) return [];
     return uscis
       .map(r => ({
-        year: r.year,
+        year: r.dataYear,
         lpr: r.indiaLprAdmissions || 0,
         nat: r.indiaNaturalizations || 0,
         ratio: r.natToLprRatio || 0,

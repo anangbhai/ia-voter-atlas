@@ -51,21 +51,15 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
   const acsRow = acs.length > 0 ? acs[0] : null;
   const absRow = abs.length > 0 ? abs[0] : null;
 
-  // SBA aggregation
+  // SBA aggregation — columns: sba7aSurnameLoans, sba7aSurnameAmount, sba504SurnameLoans, sba504SurnameAmount, dataYear
   const sbaTotal = useMemo(() => {
     const total = { loans7a: 0, loans504: 0, amount7a: 0, amount504: 0, periods: [] };
     sba.forEach(r => {
-      const count = r.loanCount || r.totalLoans || 0;
-      const amount = r.totalAmount || r.loanAmount || 0;
-      const type = (r.loanType || r.programType || "").toLowerCase();
-      if (type.includes("504")) {
-        total.loans504 += count;
-        total.amount504 += amount;
-      } else {
-        total.loans7a += count;
-        total.amount7a += amount;
-      }
-      const period = r.dataYear || r.dateRange || "";
+      total.loans7a += r.sba7aSurnameLoans || 0;
+      total.amount7a += r.sba7aSurnameAmount || 0;
+      total.loans504 += r.sba504SurnameLoans || 0;
+      total.amount504 += r.sba504SurnameAmount || 0;
+      const period = r.dataYear || "";
       if (period && !total.periods.includes(period)) total.periods.push(period);
     });
     total.totalLoans = total.loans7a + total.loans504;
@@ -77,17 +71,11 @@ export function BusinessOwnership({ data, districtId, isMobile }) {
   const sbaChartData = useMemo(() => {
     const byPeriod = {};
     sba.forEach(r => {
-      const period = r.dataYear || r.dateRange || "Unknown";
+      const period = r.dataYear || "Unknown";
       if (!byPeriod[period]) byPeriod[period] = { period, loans7a: 0, loans504: 0, totalAmount: 0 };
-      const type = (r.loanType || r.programType || "").toLowerCase();
-      const count = r.loanCount || r.totalLoans || 0;
-      const amount = r.totalAmount || r.loanAmount || 0;
-      if (type.includes("504")) {
-        byPeriod[period].loans504 += count;
-      } else {
-        byPeriod[period].loans7a += count;
-      }
-      byPeriod[period].totalAmount += amount;
+      byPeriod[period].loans7a += r.sba7aSurnameLoans || 0;
+      byPeriod[period].loans504 += r.sba504SurnameLoans || 0;
+      byPeriod[period].totalAmount += (r.sba7aSurnameAmount || 0) + (r.sba504SurnameAmount || 0);
     });
     // Sort by first 4 chars of period string (not numerically)
     return Object.values(byPeriod).sort((a, b) => a.period.localeCompare(b.period));

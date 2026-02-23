@@ -23,39 +23,28 @@ const fmtDollar = v => {
 export function ResearchInnovation({ data, isMobile }) {
   const grants = data.grants || [];
 
-  // NIH grants by year
+  // NIH grants by year — columns: dataYear, state, nihMatchedAwards, nihMatchedAmount
   const grantsByYear = useMemo(() => {
     const byYear = {};
     grants.forEach(r => {
-      const y = r.year || r.fiscalYear;
+      const y = r.dataYear;
       if (!y) return;
       if (!byYear[y]) byYear[y] = { year: y, awards: 0, amount: 0 };
-      byYear[y].awards += r.awardCount || r.awards || 1;
-      byYear[y].amount += r.totalAmount || r.awardAmount || 0;
+      byYear[y].awards += r.nihMatchedAwards || 0;
+      byYear[y].amount += r.nihMatchedAmount || 0;
     });
     return Object.values(byYear).sort((a, b) => a.year - b.year);
   }, [grants]);
 
-  const totalAwards = grants.reduce((s, r) => s + (r.awardCount || r.awards || 1), 0);
-  const totalAmount = grants.reduce((s, r) => s + (r.totalAmount || r.awardAmount || 0), 0);
+  const totalAwards = grants.reduce((s, r) => s + (r.nihMatchedAwards || 0), 0);
+  const totalAmount = grants.reduce((s, r) => s + (r.nihMatchedAmount || 0), 0);
   const latest = grantsByYear.length > 0 ? grantsByYear[grantsByYear.length - 1] : null;
   const prevYear = grantsByYear.length > 1 ? grantsByYear[grantsByYear.length - 2] : null;
   const yoyGrowth = latest && prevYear && prevYear.amount > 0
     ? ((latest.amount - prevYear.amount) / prevYear.amount * 100).toFixed(1)
     : null;
 
-  // Top institutions
-  const topInstitutions = useMemo(() => {
-    const byOrg = {};
-    grants.forEach(r => {
-      const org = r.orgName || r.institution || r.organization;
-      if (!org) return;
-      if (!byOrg[org]) byOrg[org] = { name: org, awards: 0, amount: 0 };
-      byOrg[org].awards += r.awardCount || r.awards || 1;
-      byOrg[org].amount += r.totalAmount || r.awardAmount || 0;
-    });
-    return Object.values(byOrg).sort((a, b) => b.awards - a.awards).slice(0, 10);
-  }, [grants]);
+  // Note: grants_south_asian has no institution/org column — top institutions not available
 
   return (
     <div>
@@ -146,28 +135,6 @@ export function ResearchInnovation({ data, isMobile }) {
             )}
 
             {/* Top institutions */}
-            {topInstitutions.length > 0 && (
-              <Card style={{ marginBottom: 16 }}>
-                <div style={{ padding: "16px 18px" }}>
-                  <h4 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, fontFamily: font.display, color: C.navy }}>
-                    Top Institutions
-                  </h4>
-                  {topInstitutions.map((inst, i) => (
-                    <div key={i} style={{ display: "flex", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.borderLight}`, fontSize: 12, alignItems: "center" }}>
-                      <span style={{ fontFamily: font.mono, fontWeight: 800, fontSize: 10, color: i < 3 ? C.saffronText : C.textMuted, width: 18, textAlign: "right" }}>{i + 1}</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inst.name}</span>
-                      <span style={{ fontFamily: font.mono, fontSize: 11, color: C.textSecondary, flexShrink: 0 }}>
-                        {inst.awards} awards
-                      </span>
-                      <span style={{ fontFamily: font.mono, fontSize: 11, color: C.navy, fontWeight: 600, flexShrink: 0 }}>
-                        {fmtDollar(inst.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
             <MethodologyNote>
               Surname analysis on PI last names following Ramakrishnan et al. (AAPI Data) methodology.
               NIH does not collect PI race/ethnicity in public data. Underestimates Indian American
