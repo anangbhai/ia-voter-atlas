@@ -1,33 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { supaFetch, toCamel } from "./lib/supabase.js";
+import { C, font } from "./lib/theme.js";
+import { EconomicPresenceTab } from "./components/economic/EconomicPresenceTab.jsx";
+import { useEconomicData } from "./hooks/useEconomicData.js";
+import { computeEPI, computeStateEPI, EPI_COMPONENT_LABELS } from "./lib/epi.js";
 
 const CONTACT_EMAIL = "anangbhai+voteratlas@gmail.com";
-
-// ═══════════════════════════════════════════════════════════
-// SUPABASE
-// ═══════════════════════════════════════════════════════════
-
-const SUPABASE_URL = "https://myasgeeeutbbcahnguei.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15YXNnZWVldXRiYmNhaG5ndWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjk1NTksImV4cCI6MjA4Njg0NTU1OX0.JxmwK9sc3PA9f5ws96TxHiqGKJaHBSJ4HI_X9sUtJ88";
-
-async function supaFetch(table) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*`, {
-    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
-  });
-  if (!res.ok) throw new Error(`${table}: ${res.status}`);
-  return res.json();
-}
-
-// snake_case → camelCase
-function toCamel(obj) {
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    const cc = k.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-    out[cc] = v;
-  }
-  return out;
-}
 
 // Table-specific mappers (where DB column names don't match JSX field names)
 function mapDistrict(row) {
@@ -254,7 +234,7 @@ const NARRATIVE_ITEMS = [
 
 const DENSITY_METHODS = [
   { name: "Census ACS Data", weight: 40, description: "Asian Indian alone population from ACS 5-Year Estimates (Table B02015), mapped to 119th congressional districts.", icon: "📊" },
-  { name: "FEC Donor Surname Analysis", weight: 20, description: "FEC individual contribution data filtered using validated South Asian surname lists (methodology from AAPI Data/Karthick Ramakrishnan).", icon: "💰" },
+  { name: "FEC Donor Surname Analysis", weight: 20, description: "FEC individual contribution data filtered using validated Indian surname lists (methodology from AAPI Data/Karthick Ramakrishnan).", icon: "💰" },
   { name: "Cultural Business Density", weight: 20, description: "Google Places API density of Indian restaurants, grocery stores, temples/gurdwaras, and cultural centers per capita.", icon: "🏪" },
   { name: "Google Trends Proxy", weight: 15, description: "DMA-level search interest for terms like 'Diwali', 'Indian grocery', 'H-1B visa', 'cricket score'.", icon: "🔍" },
   { name: "USCIS H-1B & DOL PERM Data", weight: 5, description: "H-1B employer location data and DOL PERM labor certification volumes (FY2008–FY2024) as proxies for recent immigration clusters and employer-sponsored green card demand not yet captured by census.", icon: "📋" },
@@ -322,70 +302,6 @@ const ELECTION_KEY_STATS = {
   indId: "26% (↑11)",
   youngMenTrump: "48%",
   surveySrc: "Carnegie IAAS 2024 (n=714, ±3.7%) · IAAS 2026 (n=1,000, ±3.6%)",
-};
-
-// ═══════════════════════════════════════════════════════════
-// DESIGN SYSTEM
-// ═══════════════════════════════════════════════════════════
-
-const C = {
-  // Surfaces
-  bg: "#FAF8F3",
-  surface: "#FFFFFF",
-  surfaceAlt: "#F5F2EB",
-  // Borders: two-tier system
-  border: "#8F8778",          // structural borders: cards, controls (3.5:1 on white, 3.35:1 on base)
-  borderLight: "#E8E3D8",     // hairline dividers: table rows, section breaks
-  // Typography
-  text: "#1E2D3D",
-  textSecondary: "#4A5568",   // body copy secondary
-  textMuted: "#6B7280",       // raised from #94A3B8 — passes 4.5:1 on white
-  // Brand: saffron
-  saffron: "#D97706",         // NON-TEXT only: underlines, chart bars, indicators, icons ≥24px
-  saffronText: "#92400E",     // TEXT-SAFE: passes 4.5:1 on white (#FFF) and base (#FAF8F3)
-  saffronDark: "#B45309",     // white-text-on-saffron buttons/chips (passes 4.5:1)
-  saffronLight: "#FEF3C7",
-  saffronBg: "#FFFBEB",
-  // Structural brand
-  navy: "#1E3A5F",            // headers, section titles, structural chrome (NOT interactive)
-  navyLight: "#E8EDF4",
-  // Interactive
-  action: "#1E40AF",          // links, primary buttons, toggles, selected states
-  actionLight: "#DBEAFE",
-  // Party coding (categorical, not severity)
-  dem: "#1E40AF",
-  demLight: "#DBEAFE",
-  gop: "#B91C1C",             // darkened from #DC2626 for better contrast on light bg
-  gopLight: "#FEE2E2",
-  gopText: "#991B1B",         // text-safe GOP red
-  toss: "#7C3AED",
-  tossLight: "#EDE9FE",
-  // Severity (separate system from party)
-  sevCritical: "#991B1B",     // death, mass casualty
-  sevHigh: "#B45309",         // significant damage, coordinated
-  sevMedium: "#4B5563",       // isolated
-  // Sentiment
-  positive: "#047857",
-  positiveBg: "#ECFDF5",
-  negative: "#B91C1C",
-  negativeBg: "#FEF2F2",
-  // Royal blue accent (survey/poll cards)
-  royalBlue: "#305CDE",
-  royalBlueLight: "#EEF2FF",
-  // Data visualization warm accent
-  dataWarm: "#895129",
-  // Legacy aliases (severity — deprecated in favor of sev* tokens)
-  red: "#9B2335",
-  redLight: "#FEE2E2",
-  critical: "#991B1B",
-  high: "#D97706",
-  medium: "#6B7280",
-};
-
-const font = {
-  display: "'Roboto Slab', 'Rockwell', 'Courier New', serif",
-  body: "'DM Sans', 'Helvetica Neue', sans-serif",
-  mono: "'JetBrains Mono', 'SF Mono', monospace",
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -467,7 +383,7 @@ function CtrlScrollZoom() {
   return null;
 }
 
-function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
+function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile, epiScores = {} }) {
   const bounds = useMemo(() => {
     const coords = districts.map(d => DISTRICT_COORDS[d.id]).filter(Boolean);
     return coords.length ? coords : [[25, -125], [50, -65]];
@@ -480,8 +396,9 @@ function DistrictMap({ districts, colorMode, onSelect, selectedId, isMobile }) {
     if (colorMode === "party") {
       return d.party === "D" ? C.dem : C.gop;
     }
-    // default: density
-    return d.densityScore >= 90 ? C.dataWarm : d.densityScore > 80 ? "#B45309" : d.densityScore > 60 ? C.saffron : "#FBBF24";
+    // default: EPI
+    const epi = epiScores[d.id]?.score || 0;
+    return epi >= 75 ? "#047857" : epi >= 50 ? "#059669" : epi >= 25 ? "#10B981" : "#6EE7B7";
   };
 
   const getRadius = (d) => {
@@ -573,6 +490,24 @@ function DensityBar({ score }) {
   );
 }
 
+function EPIBar({ epi }) {
+  if (!epi || epi.score === 0) return <span style={{ fontSize: 11, color: C.textMuted }}>—</span>;
+  const { score, coverage } = epi;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+      <div style={{ flex: 1, height: 6, background: C.borderLight, borderRadius: 3, overflow: "hidden" }}>
+        <div style={{
+          width: `${score}%`, height: "100%", borderRadius: 3,
+          background: score >= 75 ? `linear-gradient(90deg, #047857, #059669)` : score >= 50 ? "#10B981" : score >= 25 ? "#6EE7B7" : C.textMuted,
+          transition: "width 0.6s ease"
+        }} />
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: font.mono, color: score >= 50 ? "#047857" : C.textSecondary, minWidth: 24 }}>{score}</span>
+      <span style={{ fontSize: 8, fontFamily: font.mono, color: coverage === 5 ? "#047857" : C.textMuted, fontWeight: 600 }}>{coverage}/5</span>
+    </div>
+  );
+}
+
 function PersuasionBar({ score }) {
   const getColor = (s) => s >= 80 ? "#7C3AED" : s >= 60 ? "#8B5CF6" : "#A78BFA";
   return (
@@ -597,7 +532,7 @@ export default function IndianAmericanVoterAtlas() {
   const validTabs = ["house", "senate", "election", "safety", "discourse", "perm", "methodology"];
   const hashTab = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
   const [tab, setTab] = useState(validTabs.includes(hashTab) ? hashTab : "house");
-  const [sortKey, setSortKey] = useState("densityScore");
+  const [sortKey, setSortKey] = useState("epiScore");
   const [sortDir, setSortDir] = useState("desc");
   const [filterCompetitive, setFilterCompetitive] = useState(false);
   const [expandedRow, setExpandedRow] = useState(null);
@@ -608,11 +543,10 @@ export default function IndianAmericanVoterAtlas() {
   const [discourseFilter, setDiscourseFilter] = useState("all");
   const [discourseSection, setDiscourseSection] = useState("timeline");
   const [mapColorMode, setMapColorMode] = useState("density");
-  const [permSubTab, setPermSubTab] = useState("trend");
+  const [permSubTab, setPermSubTab] = useState("wages");
   const [permDistrict, setPermDistrict] = useState("TX-22");
   const [permEmpDistrict, setPermEmpDistrict] = useState("TX-22");
   const [permEmpYear, setPermEmpYear] = useState("");
-  const [methOpen, setMethOpen] = useState(null);
   const [activeInfoBox, setActiveInfoBox] = useState(null); // "density" | "persuasion" | null
   const [loaded, setLoaded] = useState(false);
   const isMobile = useIsMobile();
@@ -631,6 +565,7 @@ export default function IndianAmericanVoterAtlas() {
   const [precinctSwings, setPrecinctSwings] = useState(PRECINCT_SWINGS);
   const [permDistrictData, setPermDistrictData] = useState([]);
   const [permStateData, setPermStateData] = useState([]);
+  const econData = useEconomicData();
 
   useEffect(() => { setLoaded(true); }, []);
 
@@ -689,10 +624,31 @@ export default function IndianAmericanVoterAtlas() {
     else { setSortKey(key); setSortDir("desc"); }
   };
 
+  // PERM cumulative by district for cross-tab reference
+  const permCumulative = useMemo(() => {
+    const cum = {};
+    permDistrictData.forEach(r => {
+      cum[r.districtId] = (cum[r.districtId] || 0) + (r.permIndia || 0);
+    });
+    return cum;
+  }, [permDistrictData]);
+
+  // Economic Presence Index (EPI) — computed from live economic data
+  const epiScores = useMemo(() => {
+    if (econData.loading) return {};
+    return computeEPI(districts, econData, permCumulative);
+  }, [districts, econData, permCumulative]);
+
+  const stateEpiScores = useMemo(() => {
+    if (econData.loading || senateRaces.length === 0) return {};
+    return computeStateEPI(senateRaces, econData, permCumulative, districts);
+  }, [senateRaces, econData, permCumulative, districts]);
+
   let sortedDistricts = [...districts];
   if (filterCompetitive) sortedDistricts = sortedDistricts.filter(d => d.cook2026.includes("Lean") || d.cook2026.includes("Toss") || d.cook2026.includes("Special"));
   sortedDistricts.sort((a, b) => {
     let av = a[sortKey], bv = b[sortKey];
+    if (sortKey === "epiScore") { av = (epiScores[a.id]?.score || 0); bv = (epiScores[b.id]?.score || 0); }
     if (sortKey === "cook2026") { av = ratingOrder[av] ?? 5; bv = ratingOrder[bv] ?? 5; }
     if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     return sortDir === "desc" ? bv - av : av - bv;
@@ -704,22 +660,13 @@ export default function IndianAmericanVoterAtlas() {
     return a.state.localeCompare(b.state);
   });
 
-  // PERM cumulative by district for cross-tab reference
-  const permCumulative = useMemo(() => {
-    const cum = {};
-    permDistrictData.forEach(r => {
-      cum[r.districtId] = (cum[r.districtId] || 0) + (r.permIndia || 0);
-    });
-    return cum;
-  }, [permDistrictData]);
-
   const tabs = [
     { key: "house", label: "House Districts" },
     { key: "senate", label: "Senate 2026" },
     { key: "election", label: "2024 Election" },
+    { key: "perm", label: "Economic Presence" },
     { key: "safety", label: "Community Safety" },
     { key: "discourse", label: "Discourse Monitor" },
-    { key: "perm", label: "DOL PERM Data" },
     { key: "methodology", label: "Methodology" },
   ];
 
@@ -748,7 +695,7 @@ export default function IndianAmericanVoterAtlas() {
             District-level political intelligence for the fastest-growing electorate in America
           </p>
           <div style={{ fontSize: 10, fontFamily: font.mono, color: "rgba(255,255,255,0.4)", marginTop: 4, letterSpacing: 0.3 }}>
-            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, Cook Political Report
+            Data current as of Feb 2026 · Sources: Carnegie IAAS 2024 &amp; 2026, FBI UCR 2024, Census ACS 2023, DOL PERM FY2008–2024, FEC, HMDA, ABS, SBA, NIH, Cook Political Report
           </div>
         </div>
       </header>
@@ -784,19 +731,19 @@ export default function IndianAmericanVoterAtlas() {
                 Congressional Districts by Indian American Presence
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>
-                24 districts: 20 by population density + 4 by strategic relevance · Sorted by {sortKey === "densityScore" ? "Community Density Index" : sortKey === "persuasionScore" ? "Persuasion Index" : sortKey}
+                24 districts: 20 by population density + 4 by strategic relevance · Sorted by {sortKey === "epiScore" ? "Economic Presence Index" : sortKey === "densityScore" ? "Community Density" : sortKey === "persuasionScore" ? "Persuasion Index" : sortKey}
               </p>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["densityScore", "persuasionScore", "indianPct", "indianPop", "cook2026"].map(k => (
+                {["epiScore", "densityScore", "persuasionScore", "indianPct", "indianPop", "cook2026"].map(k => (
                   <button key={k} onClick={() => handleSort(k)} style={{
                     padding: "6px 12px", fontSize: 11, borderRadius: 6, border: `1px solid ${sortKey === k ? (k === "persuasionScore" ? "#7C3AED" : C.saffronDark) : C.border}`,
                     background: sortKey === k ? (k === "persuasionScore" ? "#EDE9FE" : C.saffronBg) : C.surface, color: sortKey === k ? (k === "persuasionScore" ? "#6D28D9" : C.saffronText) : C.textSecondary,
                     cursor: "pointer", fontFamily: font.body, fontWeight: 600, transition: "all 0.15s",
                   }}>
-                    {k === "densityScore" ? "Density" : k === "persuasionScore" ? "Persuasion" : k === "indianPct" ? "% Indian" : k === "indianPop" ? "Population" : "Rating"}
+                    {k === "epiScore" ? "EPI" : k === "densityScore" ? "CDI" : k === "persuasionScore" ? "Persuasion" : k === "indianPct" ? "% Indian" : k === "indianPop" ? "Population" : "Rating"}
                     {sortKey === k && <span style={{ marginLeft: 4 }}>{sortDir === "desc" ? "↓" : "↑"}</span>}
                   </button>
                 ))}
@@ -819,7 +766,7 @@ export default function IndianAmericanVoterAtlas() {
                 <h3 style={{ fontSize: 14, fontWeight: 700, fontFamily: font.display, margin: 0, color: C.navy }}>District Map</h3>
                 <div style={{ display: "flex", gap: 4 }}>
                   {[
-                    { key: "density", label: "Density", color: C.saffron },
+                    { key: "density", label: "EPI", color: "#059669" },
                     { key: "persuasion", label: "Persuasion", color: "#7C3AED" },
                     { key: "party", label: "Party", color: C.navy },
                   ].map(m => (
@@ -827,7 +774,7 @@ export default function IndianAmericanVoterAtlas() {
                       padding: "4px 10px", fontSize: 10, borderRadius: 5, fontWeight: 600,
                       fontFamily: font.body, cursor: "pointer", transition: "all 0.15s",
                       border: `1px solid ${mapColorMode === m.key ? m.color : C.border}`,
-                      background: mapColorMode === m.key ? (m.key === "density" ? C.saffronBg : m.key === "persuasion" ? "#EDE9FE" : C.navyLight) : C.surface,
+                      background: mapColorMode === m.key ? (m.key === "density" ? "#ECFDF5" : m.key === "persuasion" ? "#EDE9FE" : C.navyLight) : C.surface,
                       color: mapColorMode === m.key ? m.color : C.textSecondary,
                     }}>{m.label}</button>
                   ))}
@@ -839,20 +786,21 @@ export default function IndianAmericanVoterAtlas() {
                 selectedId={expandedRow}
                 onSelect={(id) => setExpandedRow(expandedRow === id ? null : id)}
                 isMobile={isMobile}
+                epiScores={epiScores}
               />
               <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
                 {mapColorMode === "density" && <>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.dataWarm, display: "inline-block" }} /> 90+
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#047857", display: "inline-block" }} /> 75+
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#B45309", display: "inline-block" }} /> 80–89
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#059669", display: "inline-block" }} /> 50–74
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.saffron, display: "inline-block" }} /> 60–79
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10B981", display: "inline-block" }} /> 25–49
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.textMuted }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FBBF24", display: "inline-block" }} /> &lt;60
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6EE7B7", display: "inline-block" }} /> &lt;25
                   </span>
                 </>}
                 {mapColorMode === "persuasion" && <>
@@ -922,7 +870,8 @@ export default function IndianAmericanVoterAtlas() {
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Indian pop:</span> {(sel.indianPop / 1000).toFixed(0)}K ({sel.indianPct}%)</span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Harris 2024:</span> {sel.harris2024}%</span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Cook PVI:</span> {sel.cookPVI}</span>
-                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Density:</span> <strong style={{ color: C.saffronText }}>{sel.densityScore}</strong></span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>EPI:</span> <strong style={{ color: "#047857" }}>{epiScores[sel.id]?.score || "—"}</strong> <span style={{ fontSize: 9, color: C.textMuted }}>({epiScores[sel.id]?.coverage || 0}/5)</span></span>
+                    <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>CDI:</span> <strong style={{ color: C.saffronText }}>{sel.densityScore}</strong></span>
                     <span><span style={{ fontFamily: font.mono, color: C.textMuted }}>Persuasion:</span> <strong style={{ color: "#6D28D9" }}>{sel.persuasionScore}</strong></span>
                     {sel.notes && <span style={{ flexBasis: "100%", fontSize: 11, color: C.textMuted, fontStyle: "italic" }}>{sel.notes}</span>}
                   </div>
@@ -946,11 +895,11 @@ export default function IndianAmericanVoterAtlas() {
                       color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
                       marginBottom: 4,
                     }}>
-                      {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                      {activeInfoBox === "epi" ? "Economic Presence Index" : "Persuasion Index"}
                     </div>
                     <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
-                      {activeInfoBox === "density"
-                        ? "Composite score (0–100) measuring Indian American civic presence in the district: census population share, FEC donor density, cultural institutions (temples, gurdwaras, businesses), Google Trends signals, and H-1B/PERM employment data. Higher scores indicate deeper community roots and infrastructure."
+                      {activeInfoBox === "epi"
+                        ? "Economic Presence Index (0–100): weighted composite of FEC donor activity (30%), HMDA mortgage originations (25%), business ownership (20%), NIH/NSF research grants (15%), and SBA loans (10%). Missing components are excluded and weights renormalized — the coverage badge shows how many of 5 indicators contributed. Computed from live federal data using min-max normalization across the 24-district set."
                         : "Composite score (0–100) measuring how moveable the Indian American vote is in the district: Cook PVI competitiveness, 2020→2024 precinct-level swing, independent identification rate, population size relative to margin, and bounceback evidence from prior cycles. Higher scores indicate greater strategic opportunity for outreach."}
                     </div>
                   </div>
@@ -971,7 +920,7 @@ export default function IndianAmericanVoterAtlas() {
                 textTransform: "uppercase", letterSpacing: 1,
               }}>
                 <div>District</div><div>Representative</div><div style={{ textAlign: "right" }}>Indian %</div>
-                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
+                <div style={{ textAlign: "right" }}>Pop.</div><div>Rating</div><div style={{ display: "flex", alignItems: "center" }}>EPI<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "epi" ? null : "epi"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "epi" ? C.navy : C.borderLight, color: activeInfoBox === "epi" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div><div style={{ display: "flex", alignItems: "center" }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
               </div>
               <div style={{ fontSize: 10, fontFamily: font.mono, color: C.textMuted, padding: "6px 16px", marginBottom: 0 }}>
                 <span style={{ color: "#2D8A4E", fontSize: 14 }}>★</span> = Included for strategic relevance (committee chair, India Caucus, swing-seat dynamics)
@@ -998,16 +947,45 @@ export default function IndianAmericanVoterAtlas() {
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontWeight: 600, fontSize: 13, color: d.indianPct > 6 ? C.saffronText : C.text }}>{d.indianPct}%</div>
                     <div style={{ textAlign: "right", fontFamily: font.mono, fontSize: 12, color: C.textSecondary }}>{(d.indianPop / 1000).toFixed(0)}K</div>
                     <div><Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge></div>
-                    <DensityBar score={d.densityScore} />
+                    <EPIBar epi={epiScores[d.id]} />
                     <PersuasionBar score={d.persuasionScore} />
                   </div>
-                  {expandedRow === d.id && (
-                    <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
-                      <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
-                      {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
-                      <br />{d.notes}
-                    </div>
-                  )}
+                  {expandedRow === d.id && (() => {
+                    const distState = d.id.split("-")[0];
+                    const hmdaRow = econData.hmda.find(r => r.districtId === d.id);
+                    const acsRow = econData.acs.find(r => r.districtId === d.id);
+                    const fecRows = econData.fec.filter(r => r.geographyId === d.id && String(r.electionCycle) === "2024");
+                    const fecTotal = fecRows.reduce((s, r) => s + (r.totalContributions || 0), 0);
+                    const hasEcon = hmdaRow || acsRow || fecTotal > 0;
+                    return (
+                      <div style={{ padding: "14px 16px 14px 96px", background: C.saffronBg, borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                        <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}% · Total pop: {(d.totalPop / 1000).toFixed(0)}K
+                        {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span> cumulative India-born</>}
+                        <span style={{ marginLeft: 8, fontFamily: font.mono, fontSize: 11 }}>CDI: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong></span>
+                        <br />{d.notes}
+                        {epiScores[d.id] && epiScores[d.id].coverage > 0 && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 12 }}>
+                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>EPI Score based on {epiScores[d.id].coverage} of 5 indicators:</span>
+                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                              {Object.entries(epiScores[d.id].components).map(([key, val]) => (
+                                <span key={key} style={{ opacity: val !== null ? 1 : 0.4 }}>
+                                  <span style={{ color: C.textMuted }}>{EPI_COMPONENT_LABELS[key]}:</span>{" "}
+                                  <strong style={{ color: val !== null ? "#047857" : C.textMuted }}>{val !== null ? val : "—"}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {hasEcon && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
+                            <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Raw data:</span>
+                            {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA originations:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
+                            {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC 2024:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
               </>}
@@ -1031,7 +1009,7 @@ export default function IndianAmericanVoterAtlas() {
                           color: C.navy, textTransform: "uppercase", letterSpacing: "0.05em",
                           marginBottom: 4,
                         }}>
-                          {activeInfoBox === "density" ? "Density Index" : "Persuasion Index"}
+                          {activeInfoBox === "epi" ? "Economic Presence Index" : "Persuasion Index"}
                         </div>
                         <div style={{ fontSize: 12, fontFamily: font.body, color: C.text, lineHeight: 1.5 }}>
                           {activeInfoBox === "density"
@@ -1075,8 +1053,8 @@ export default function IndianAmericanVoterAtlas() {
                       {/* Row 3: Bars side by side */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Density<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "density" ? null : "density"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "density" ? C.navy : C.borderLight, color: activeInfoBox === "density" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
-                          <DensityBar score={d.densityScore} />
+                          <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>EPI<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "epi" ? null : "epi"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "epi" ? C.navy : C.borderLight, color: activeInfoBox === "epi" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
+                          <EPIBar epi={epiScores[d.id]} />
                         </div>
                         <div>
                           <div style={{ fontSize: 9, fontWeight: 700, fontFamily: font.mono, color: C.textMuted, textTransform: "uppercase", marginBottom: 4 }}>Persuasion<span onClick={(e) => { e.stopPropagation(); setActiveInfoBox(activeInfoBox === "persuasion" ? null : "persuasion"); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, borderRadius: "50%", fontSize: 9, fontWeight: 700, fontFamily: font.mono, marginLeft: 4, cursor: "pointer", userSelect: "none", background: activeInfoBox === "persuasion" ? C.navy : C.borderLight, color: activeInfoBox === "persuasion" ? "#fff" : C.textMuted, transition: "all 0.15s ease" }}>i</span></div>
@@ -1085,13 +1063,32 @@ export default function IndianAmericanVoterAtlas() {
                       </div>
 
                       {/* Expanded detail */}
-                      {expandedRow === d.id && (
-                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
-                          <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
-                          {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
-                          <br />{d.notes}
-                        </div>
-                      )}
+                      {expandedRow === d.id && (() => {
+                        const hmdaRow = econData.hmda.find(r => r.districtId === d.id);
+                        const acsRow = econData.acs.find(r => r.districtId === d.id);
+                        const fecRows = econData.fec.filter(r => r.geographyId === d.id && String(r.electionCycle) === "2024");
+                        const fecTotal = fecRows.reduce((s, r) => s + (r.totalContributions || 0), 0);
+                        const hasEcon = hmdaRow || acsRow || fecTotal > 0;
+                        return (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
+                            <strong style={{ color: C.text }}>{d.metro}</strong> · Cook PVI: {d.cookPVI} · Harris 2024: {d.harris2024}%
+                            {permCumulative[d.id] > 0 && <> · <span style={{ color: C.navy, fontWeight: 600 }}>PERM: {permCumulative[d.id].toLocaleString()}</span></>}
+                            <span style={{ marginLeft: 6, fontFamily: font.mono, fontSize: 10 }}>CDI: <strong style={{ color: C.saffronText }}>{d.densityScore}</strong></span>
+                            <br />{d.notes}
+                            {epiScores[d.id] && epiScores[d.id].coverage > 0 && (
+                              <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.borderLight}`, fontSize: 10 }}>
+                                <span style={{ fontFamily: font.mono, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Score based on {epiScores[d.id].coverage} of 5 indicators</span>
+                              </div>
+                            )}
+                            {hasEcon && (
+                              <div style={{ marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 11 }}>
+                                {hmdaRow && <span><span style={{ color: C.textMuted }}>HMDA:</span> <strong style={{ color: C.navy }}>{(hmdaRow.originations || 0).toLocaleString()}</strong></span>}
+                                {fecTotal > 0 && <span><span style={{ color: C.textMuted }}>FEC '24:</span> <strong style={{ color: C.navy }}>${fecTotal >= 1000000 ? (fecTotal / 1000000).toFixed(1) + "M" : fecTotal >= 1000 ? (fecTotal / 1000).toFixed(0) + "K" : fecTotal}</strong></span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -1146,6 +1143,12 @@ export default function IndianAmericanVoterAtlas() {
                         <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5 }}>
                           {race.incumbent} <span style={{ color: race.party === "D" ? C.dem : C.gop, fontWeight: 600 }}>({race.party})</span> · Trump margin: {race.trumpMargin2024}
                           <span style={{ marginLeft: 6, fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>({race.indianPct}%)</span>
+                          {stateEpiScores[race.state] && stateEpiScores[race.state].score > 0 && (
+                            <span style={{ marginLeft: 8, fontSize: 10, fontFamily: font.mono }}>
+                              <span style={{ color: C.textMuted }}>EPI:</span> <strong style={{ color: "#047857" }}>{stateEpiScores[race.state].score}</strong>
+                              <span style={{ fontSize: 8, color: C.textMuted, marginLeft: 2 }}>{stateEpiScores[race.state].coverage}/5</span>
+                            </span>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -1164,16 +1167,46 @@ export default function IndianAmericanVoterAtlas() {
                           <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: 22, fontWeight: 800, fontFamily: font.mono, color: race.indianPop > 100000 ? C.saffron : C.text }}>{(race.indianPop / 1000).toFixed(0)}K</div>
                             <div style={{ fontSize: 10, color: C.textMuted, fontFamily: font.mono }}>INDIAN POP ({race.indianPct}%)</div>
+                            {stateEpiScores[race.state] && stateEpiScores[race.state].score > 0 && (
+                              <div style={{ marginTop: 4, fontSize: 11, fontFamily: font.mono }}>
+                                <span style={{ color: C.textMuted }}>EPI:</span>{" "}
+                                <strong style={{ color: "#047857" }}>{stateEpiScores[race.state].score}</strong>
+                                <span style={{ fontSize: 8, color: C.textMuted, marginLeft: 3 }}>{stateEpiScores[race.state].coverage}/5</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </>
                     )}
-                    {expandedSenate === race.state && (
-                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderLight}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
-                        <strong style={{ color: C.text }}>Key metros:</strong> {race.keyMetros}<br />
-                        {race.notes}
-                      </div>
-                    )}
+                    {expandedSenate === race.state && (() => {
+                      const stCode = race.state;
+                      const fecByState = econData.fec.filter(r => r.geographyId === stCode && (r.geographyType || "").toLowerCase() === "state");
+                      const fec2024 = fecByState.find(r => String(r.electionCycle) === "2024");
+                      const fec2022 = fecByState.find(r => String(r.electionCycle) === "2022");
+                      const fec2020 = fecByState.find(r => String(r.electionCycle) === "2020");
+                      const hasFec = fec2024 || fec2022 || fec2020;
+                      return (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderLight}`, fontSize: 13, color: C.textSecondary, lineHeight: 1.7 }}>
+                          <strong style={{ color: C.text }}>Key metros:</strong> {race.keyMetros}<br />
+                          {race.notes}
+                          {hasFec && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.borderLight}`, fontSize: 12 }}>
+                              <span style={{ fontFamily: font.mono, fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase" }}>Indian American donor contributions: </span>
+                              {[
+                                fec2020 && { year: "2020", amt: fec2020.totalContributions },
+                                fec2022 && { year: "2022", amt: fec2022.totalContributions },
+                                fec2024 && { year: "2024", amt: fec2024.totalContributions },
+                              ].filter(Boolean).map((f, i, arr) => (
+                                <span key={f.year}>
+                                  {f.year}: <strong style={{ color: C.navy }}>${f.amt >= 1000000 ? (f.amt / 1000000).toFixed(1) + "M" : f.amt >= 1000 ? (f.amt / 1000).toFixed(0) + "K" : f.amt}</strong>
+                                  {i < arr.length - 1 && " → "}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Card>
               ))}
@@ -1829,368 +1862,22 @@ export default function IndianAmericanVoterAtlas() {
           </div>
         )}
 
-        {/* ═══ DOL PERM DATA TAB ═══ */}
-        {tab === "perm" && (() => {
-          const permDistricts = [...new Set(permDistrictData.map(r => r.districtId))].sort();
-          const permYears = [...new Set(permDistrictData.map(r => r.dataFiscalYear))].sort();
-          const permYearsDesc = [...permYears].reverse();
-
-          // Summary stats
-          const totalIndia = permDistrictData.reduce((s, r) => s + (r.permIndia || 0), 0);
-          const yearRange = permYears.length > 0 ? `${permYears[0]}–${permYears[permYears.length - 1]}` : "—";
-          const latestYear = permYears[permYears.length - 1];
-          const latestRows = permDistrictData.filter(r => r.dataFiscalYear === latestYear && r.avgOfferedWage);
-          const avgWage = latestRows.length > 0 ? Math.round(latestRows.reduce((s, r) => s + r.avgOfferedWage, 0) / latestRows.length) : null;
-          const cumulative = {};
-          permDistrictData.forEach(r => { cumulative[r.districtId] = (cumulative[r.districtId] || 0) + (r.permIndia || 0); });
-          const topDist = Object.entries(cumulative).sort((a, b) => b[1] - a[1])[0];
-
-          // Trend data for selected district
-          const trendRows = permDistrictData.filter(r => r.districtId === permDistrict).sort((a, b) => a.dataFiscalYear.localeCompare(b.dataFiscalYear));
-          const trendMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
-          const trendCumTotal = trendRows.reduce((s, r) => s + (r.permIndia || 0), 0);
-
-          // Wage comparison
-          const wageByDist = {};
-          permDistrictData.forEach(r => {
-            if (r.avgOfferedWage && r.avgOfferedWage > 0) {
-              if (!wageByDist[r.districtId] || r.dataFiscalYear > wageByDist[r.districtId].fy) {
-                wageByDist[r.districtId] = { wage: r.avgOfferedWage, fy: r.dataFiscalYear };
-              }
-            }
-          });
-          const wageEntries = permDistricts
-            .filter(d => wageByDist[d] && LOCAL_MEDIAN_INCOME[d])
-            .map(d => ({ district: d, perm: wageByDist[d].wage, local: LOCAL_MEDIAN_INCOME[d], ratio: wageByDist[d].wage / LOCAL_MEDIAN_INCOME[d] }))
-            .sort((a, b) => b.ratio - a.ratio);
-          const wageMax = wageEntries.length > 0 ? Math.max(...wageEntries.map(e => Math.max(e.perm, e.local))) : 1;
-
-          // Employers
-          const empState = permEmpDistrict.split("-")[0];
-          let empRow = permDistrictData.find(r => r.districtId === permEmpDistrict && r.dataFiscalYear === permEmpYear);
-          let empSource = "district";
-          if (!empRow) { empRow = permStateData.find(r => r.state === empState && r.dataFiscalYear === permEmpYear); empSource = "state"; }
-          const employers = empRow?.topEmployers || [];
-          const occupations = empRow?.topOccupations || [];
-
-          // Leaderboard
-          const leaderboard = Object.entries(cumulative).sort((a, b) => b[1] - a[1]);
-          const lbMax = leaderboard[0] ? leaderboard[0][1] : 1;
-
-          // Sub-tabs
-          const permSubs = [
-            { key: "trend", label: "Trend" },
-            { key: "wages", label: "Wages" },
-            { key: "employers", label: "Who's Hiring" },
-            { key: "rankings", label: "Rankings" },
-          ];
-
-          return (
-          <div>
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ fontSize: 24, fontWeight: 800, fontFamily: font.display, margin: "0 0 6px", color: C.navy }}>
-                DOL PERM Data Explorer
-              </h2>
-              <p style={{ fontSize: 14, color: C.textSecondary, margin: "0 0 4px", maxWidth: 700, lineHeight: 1.6 }}>
-                Permanent labor certification (PERM) applications filed with the U.S. Department of Labor — a proxy for where Indian American economic roots are deepening through employment-based green card sponsorship.
-              </p>
-              <div style={{ display: "inline-block", padding: "6px 12px", background: C.navyLight, borderRadius: 6, fontSize: 11, color: C.navy, lineHeight: 1.6, marginTop: 8 }}>
-                <strong>Source:</strong> DOL OFLC PERM Disclosure Data ({yearRange}) · Filtered to India-born applicants · Mapped to 119th congressional districts
-              </div>
-            </div>
-
-            {/* Editorial framing */}
-            <Card style={{ marginBottom: 20, borderLeft: `4px solid ${C.dataWarm}` }}>
-              <div style={{ padding: "14px 18px", fontSize: 12, color: C.textSecondary, lineHeight: 1.7 }}>
-                <strong style={{ color: C.navy }}>Reading this data:</strong> A PERM certification is Step 1 of the employment-based green card process — it means the Department of Labor certified that no qualified U.S. worker was available for the position. It does <em>not</em> mean a green card was issued. Many certified PERMs never result in a green card due to visa backlogs, employer withdrawal, or applicant departure. These numbers measure <strong style={{ color: C.text }}>employer demand for skilled immigrant labor</strong> and serve as a proxy for where Indian American economic roots are deepening — not immigration volume.
-              </div>
-            </Card>
-
-            {/* Summary strip */}
-            {permDistricts.length === 0 ? (
-              <Card>
-                <div style={{ padding: "40px 20px", textAlign: "center" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>No PERM Data Loaded</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, color: C.navy, margin: "8px 0" }}>Getting Started</div>
-                  <div style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.6 }}>
-                    Run <code style={{ background: C.surfaceAlt, padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>process_perm.py</code> on DOL PERM Excel files, then load the SQL into Supabase.
-                  </div>
-                </div>
-              </Card>
-            ) : (
-            <>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
-              <Card>
-                <div style={{ padding: "14px 18px", textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Total India-born PERM</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{totalIndia.toLocaleString()}</div>
-                  <div style={{ fontSize: 11, color: C.textSecondary }}>{permDistricts.length} districts, {yearRange}</div>
-                </div>
-              </Card>
-              <Card>
-                <div style={{ padding: "14px 18px", textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Fiscal Years</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{permYears.length}</div>
-                  <div style={{ fontSize: 11, color: C.textSecondary }}>{yearRange}</div>
-                </div>
-              </Card>
-              <Card>
-                <div style={{ padding: "14px 18px", textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Avg Offered Wage</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{avgWage ? `$${avgWage.toLocaleString()}` : "—"}</div>
-                  <div style={{ fontSize: 11, color: C.textSecondary }}>{latestYear || "Latest year"} average</div>
-                </div>
-              </Card>
-              <Card>
-                <div style={{ padding: "14px 18px", textAlign: "center" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted }}>Top District</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: font.mono, color: C.navy, margin: "4px 0" }}>{topDist ? topDist[0] : "—"}</div>
-                  <div style={{ fontSize: 11, color: C.textSecondary }}>{topDist ? `${topDist[1].toLocaleString()} cumulative` : ""}</div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Sub-tabs */}
-            <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 20, overflowX: "auto" }}>
-              {permSubs.map(s => (
-                <button key={s.key} onClick={() => setPermSubTab(s.key)} style={{
-                  padding: "10px 20px", fontSize: 13, fontWeight: permSubTab === s.key ? 700 : 500,
-                  fontFamily: font.body, border: "none", background: "transparent", cursor: "pointer",
-                  color: permSubTab === s.key ? C.navy : C.textMuted,
-                  borderBottom: permSubTab === s.key ? `2px solid ${C.saffron}` : "2px solid transparent",
-                  whiteSpace: "nowrap",
-                }}>{s.label}</button>
-              ))}
-            </div>
-
-            {/* TREND SUB-TAB */}
-            {permSubTab === "trend" && (
-              <Card>
-                <div style={{ padding: "20px 22px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>PERM Certifications Over Time</h3>
-                    <select value={permDistrict} onChange={e => setPermDistrict(e.target.value)} style={{
-                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
-                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
-                    }}>
-                      {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 20px" }}>
-                    {permDistrict} — {trendCumTotal.toLocaleString()} cumulative India-born PERM certifications
-                  </p>
-
-                  {/* Bar chart */}
-                  {(() => {
-                    const chartH = 200;
-                    const barArea = chartH - 10;
-                    // Compute nice Y-axis ticks
-                    const rawMax = Math.max(...trendRows.map(r => r.permCertified || 0), 1);
-                    const niceMax = rawMax <= 100 ? Math.ceil(rawMax / 20) * 20
-                      : rawMax <= 500 ? Math.ceil(rawMax / 100) * 100
-                      : rawMax <= 2000 ? Math.ceil(rawMax / 500) * 500
-                      : rawMax <= 10000 ? Math.ceil(rawMax / 2000) * 2000
-                      : Math.ceil(rawMax / 5000) * 5000;
-                    const tickCount = 4;
-                    const ticks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(niceMax * (tickCount - i) / tickCount));
-                    const fmtTick = v => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 || v % 1000 === 0 ? 0 : 1)}K` : String(v);
-
-                    return (
-                      <div style={{ display: "flex", gap: 0 }}>
-                        {/* Y-axis */}
-                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", height: chartH, paddingRight: 8, flexShrink: 0, paddingBottom: 0 }}>
-                          {ticks.map(v => (
-                            <div key={v} style={{ fontSize: 9, fontFamily: font.mono, color: C.textMuted, textAlign: "right", lineHeight: 1, minWidth: isMobile ? 24 : 30 }}>{fmtTick(v)}</div>
-                          ))}
-                        </div>
-                        {/* Bar area */}
-                        <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
-                          {/* Grid lines */}
-                          {ticks.map((v, i) => (
-                            <div key={i} style={{ position: "absolute", top: `${(i / tickCount) * 100}%`, left: 0, right: 0, height: 1, background: i === tickCount ? C.border : C.borderLight, opacity: i === tickCount ? 0.5 : 0.6 }} />
-                          ))}
-                          <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 1 : 4, height: chartH, position: "relative" }}>
-                            {trendRows.map(r => {
-                              const total = r.permCertified || 0;
-                              const india = r.permIndia || 0;
-                              const totalH = niceMax > 0 ? Math.max(total / niceMax * barArea, total > 0 ? 3 : 0) : 0;
-                              const indiaH = niceMax > 0 && total > 0 ? Math.max(india / niceMax * barArea, india > 0 ? 3 : 0) : 0;
-                              return (
-                                <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
-                                  title={`${r.dataFiscalYear}: ${india.toLocaleString()} India / ${total.toLocaleString()} total`}>
-                                  <div style={{ width: "100%", maxWidth: isMobile ? undefined : 36, position: "relative", height: totalH }}>
-                                    <div style={{ position: "absolute", bottom: 0, left: isMobile ? "5%" : 0, right: isMobile ? "5%" : 0, height: totalH, background: C.navyLight, borderRadius: "3px 3px 0 0" }} />
-                                    <div style={{ position: "absolute", bottom: 0, left: isMobile ? "5%" : 0, right: isMobile ? "5%" : 0, height: indiaH, background: C.saffron, borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {/* Year labels */}
-                  <div style={{ display: "flex", gap: isMobile ? 1 : 4, marginTop: 6, paddingLeft: isMobile ? 28 : 38 }}>
-                    {trendRows.map(r => (
-                      <div key={r.dataFiscalYear} style={{ flex: 1, minWidth: 0, textAlign: "center", fontSize: isMobile ? 7 : 10, fontFamily: font.mono, color: C.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {r.dataFiscalYear.replace("FY", "'")}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Legend */}
-                  <div style={{ display: "flex", gap: 16, marginTop: 14, fontSize: 11, color: C.textSecondary }}>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.saffron, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> India-born certified</span>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.navyLight, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> All certified</span>
-                  </div>
-
-                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
-                    Note: FY2009 reflects the Great Recession dip. FY2020 shows COVID-era processing delays. FY2024 may reflect incomplete data or policy shifts.
-                  </p>
-                </div>
-              </Card>
-            )}
-
-            {/* WAGES SUB-TAB */}
-            {permSubTab === "wages" && (
-              <Card>
-                <div style={{ padding: "20px 22px" }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>PERM Offered Wage vs. Local Median Income</h3>
-                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
-                    DOL-certified wages compared to Census ACS median household income. Sorted by wage ratio — highest multiplier first.
-                  </p>
-                  <div style={{ display: "flex", gap: 16, marginBottom: 16, fontSize: 11, color: C.textSecondary }}>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.saffron, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> PERM median offered wage</span>
-                    <span><span style={{ display: "inline-block", width: 10, height: 10, background: C.navy, opacity: 0.3, borderRadius: 2, marginRight: 4, verticalAlign: "middle" }} /> Local median household income</span>
-                  </div>
-
-                  {wageEntries.length === 0 ? (
-                    <p style={{ color: C.textMuted, textAlign: "center", padding: "40px 0" }}>No wage comparison data available.</p>
-                  ) : wageEntries.map(e => (
-                    <div key={e.district} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: C.text, flexShrink: 0 }}>{e.district}</div>
-                      <div style={{ flex: 1, position: "relative", height: 18 }}>
-                        <div style={{ position: "absolute", height: 8, top: 5, left: 0, width: `${(e.local / wageMax * 100).toFixed(1)}%`, background: C.navy, opacity: 0.2, borderRadius: 4 }} />
-                        <div style={{ position: "absolute", height: 8, top: 5, left: 0, width: `${(e.perm / wageMax * 100).toFixed(1)}%`, background: C.saffron, opacity: 0.85, borderRadius: 4 }} />
-                      </div>
-                      <div style={{ width: 90, textAlign: "right", fontSize: 12, fontFamily: font.mono, flexShrink: 0 }}>
-                        ${Math.round(e.perm / 1000)}K{" "}
-                        <span style={{ color: e.ratio >= 1.5 ? "#166534" : C.text, fontWeight: 600, fontSize: 10 }}>{e.ratio.toFixed(1)}×</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
-                    PERM offered wages are from the most recent fiscal year with data. Local median income from Census ACS 5-year estimates. PERM wages reflect individual salaries; median household income may include multiple earners. Districts without verified local income data are excluded.
-                  </p>
-                </div>
-              </Card>
-            )}
-
-            {/* EMPLOYERS SUB-TAB */}
-            {permSubTab === "employers" && (
-              <Card>
-                <div style={{ padding: "20px 22px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4, flexWrap: "wrap" }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Top Employers & Occupations</h3>
-                    <select value={permEmpDistrict} onChange={e => setPermEmpDistrict(e.target.value)} style={{
-                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
-                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
-                    }}>
-                      {permDistricts.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                    <select value={permEmpYear} onChange={e => setPermEmpYear(e.target.value)} style={{
-                      padding: "6px 10px", fontSize: 12, fontFamily: font.mono, fontWeight: 600,
-                      border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, color: C.text,
-                    }}>
-                      {permYearsDesc.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Source badge */}
-                  {empRow ? (
-                    <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
-                      {permEmpYear} •{" "}
-                      {empSource === "state" ? (
-                        <>
-                          <span style={{ display: "inline-block", padding: "2px 8px", background: C.saffronBg, color: C.saffronText, borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.3, verticalAlign: "middle" }}>STATE-LEVEL ({empState})</span>
-                          {" "}District-specific employer data not available; showing state aggregate.
-                        </>
-                      ) : "District-level data"}
-                    </p>
-                  ) : (
-                    <p style={{ fontSize: 12, color: C.textMuted, margin: "0 0 16px" }}>
-                      No PERM data available for {permEmpDistrict} in {permEmpYear}. Try a different fiscal year.
-                    </p>
-                  )}
-
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
-                    {/* Employers */}
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, marginBottom: 8 }}>Top Employers</div>
-                      {employers.length > 0 ? employers.map((e, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }}>
-                          <span style={{ fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: C.textMuted, width: 18 }}>{i + 1}</span>
-                          <span>{e}</span>
-                        </div>
-                      )) : (
-                        <p style={{ color: C.textMuted, padding: "20px 0", textAlign: "center", fontSize: 12 }}>No employer data for this selection</p>
-                      )}
-                    </div>
-
-                    {/* Occupations */}
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: C.textMuted, marginBottom: 8 }}>Top Occupations</div>
-                      {occupations.length > 0 ? occupations.map((o, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13 }}>
-                          <span style={{ fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: C.textMuted, width: 18 }}>{i + 1}</span>
-                          <span>{o}</span>
-                        </div>
-                      )) : (
-                        <p style={{ color: C.textMuted, padding: "20px 0", textAlign: "center", fontSize: 12 }}>No occupation data for this selection</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
-                    Employer and occupation data from DOL PERM disclosure files. For multi-district states, data may reflect the state-level aggregate.
-                  </p>
-                </div>
-              </Card>
-            )}
-
-            {/* RANKINGS SUB-TAB */}
-            {permSubTab === "rankings" && (
-              <Card>
-                <div style={{ padding: "20px 22px" }}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Cumulative PERM Volume, {yearRange}</h3>
-                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px" }}>
-                    Total India-born certified PERM applications by district across all available fiscal years
-                  </p>
-
-                  {leaderboard.map(([dist, total], i) => (
-                    <div key={dist} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                      <div style={{ width: 20, fontFamily: font.mono, fontWeight: 800, fontSize: 11, color: i < 3 ? C.saffronText : C.textMuted, textAlign: "right" }}>{i + 1}</div>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: C.text }}>{dist}</div>
-                      <div style={{ flex: 1, position: "relative", height: 14 }}>
-                        <div style={{ position: "absolute", height: 10, top: 2, left: 0, width: `${(total / lbMax * 100).toFixed(1)}%`, background: `linear-gradient(90deg, ${C.saffron}, ${C.navy})`, opacity: 0.7, borderRadius: 4 }} />
-                      </div>
-                      <div style={{ width: 70, textAlign: "right", fontSize: 12, fontFamily: font.mono, fontWeight: 600 }}>{total.toLocaleString()}</div>
-                    </div>
-                  ))}
-
-                  <p style={{ fontSize: 11, color: C.textMuted, marginTop: 16, lineHeight: 1.6, fontStyle: "italic" }}>
-                    Cumulative totals sum all available fiscal years. Districts in single-tracked states receive exact state totals. Multi-district states are split proportionally by Indian American population share.
-                  </p>
-                </div>
-              </Card>
-            )}
-            </>
-            )}
-          </div>
-          );
-        })()}
+        {/* ═══ ECONOMIC PRESENCE TAB ═══ */}
+        {tab === "perm" && (
+          <EconomicPresenceTab
+            permDistrictData={permDistrictData}
+            permStateData={permStateData}
+            permDistrict={permDistrict}
+            setPermDistrict={setPermDistrict}
+            permEmpDistrict={permEmpDistrict}
+            setPermEmpDistrict={setPermEmpDistrict}
+            permEmpYear={permEmpYear}
+            setPermEmpYear={setPermEmpYear}
+            permSubTab={permSubTab}
+            setPermSubTab={setPermSubTab}
+            isMobile={isMobile}
+          />
+        )}
 
         {/* ═══ METHODOLOGY TAB ═══ */}
         {tab === "methodology" && (
@@ -2200,125 +1887,98 @@ export default function IndianAmericanVoterAtlas() {
                 Methodology
               </h2>
               <p style={{ fontSize: 14, color: C.textSecondary, margin: 0, maxWidth: 700, lineHeight: 1.6 }}>
-                Two proprietary indices power this dashboard. The DOL PERM Data tab provides 17 years of employment-based green card sponsorship data as an independent economic signal.
+                Three indices power this dashboard. The Economic Presence Index (EPI) is the primary score shown on district cards and Senate race rows, computed dynamically from live federal data. The Community Density Index (CDI) and Persuasion Index remain available in the detail view.
               </p>
             </div>
 
-            {/* COMMUNITY DENSITY INDEX — ACCORDION */}
-            <Card style={{ marginBottom: 12 }}>
-              <div
-                onClick={() => setMethOpen(methOpen === "density" ? null : "density")}
-                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index</h3>
-                    <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
-                    Where Indian Americans are civically and economically active — not just where they live. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement.
-                  </p>
+            {/* ECONOMIC PRESENCE INDEX */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Economic Presence Index (EPI)</h3>
+                  <Badge color="#047857" bg="#ECFDF5">0–100</Badge>
+                  <Badge color={C.navy} bg={C.navyLight}>PRIMARY</Badge>
                 </div>
-                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "density" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
-              </div>
-              {methOpen === "density" && (
-                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
-                  {DENSITY_METHODS.map((m, i) => (
-                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: C.saffronText, background: C.saffronBg, padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Composite score measuring Indian American economic footprint in each district, computed dynamically from live federal data using min-max normalization across the 24-district set. Missing components are excluded from the denominator and weights renormalized — the coverage badge (e.g. "4/5") shows how many indicators contributed.
+                </p>
+                {[
+                  { name: "FEC Donor Activity", weight: 30, description: "Federal Election Commission individual contributions filtered by Indian surname, measured as donor-to-population ratio. Covers 8 districts directly plus state-level proxy for remaining districts.", icon: "💰" },
+                  { name: "HMDA Mortgage Originations", weight: 25, description: "Home Mortgage Disclosure Act data — originations per capita using HMDA race code 21 (Asian Indian), borrower self-reported. Available for 8 of 24 districts.", icon: "🏠" },
+                  { name: "Business Ownership Rate", weight: 20, description: "ACS self-employment data and ABS employer firm counts (Asian Indian share estimated at ~22% of Asian total). Available for all 24 districts.", icon: "🏭" },
+                  { name: "NIH/NSF Grant Activity", weight: 15, description: "National Institutes of Health and National Science Foundation awards to Indian-origin PIs (surname estimate). State-level data mapped as district proxy. Covers 11 states.", icon: "🔬" },
+                  { name: "SBA Loan Volume", weight: 10, description: "Small Business Administration 7(a) and 504 program loan volume per capita, filtered by Indian surname on business owner names. Available for all 24 districts.", icon: "🏦" },
+                ].map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < 4 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#047857", background: "#ECFDF5", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
                       </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
-                  ))}
+                  </div>
+                ))}
+                <div style={{ marginTop: 12, padding: "10px 14px", background: "#F0FDF4", borderRadius: 6, fontSize: 12, color: "#065F46", lineHeight: 1.6 }}>
+                  <strong>Missing component handling:</strong> If a district lacks data for a component (e.g. no HMDA records), that component is excluded and the remaining weights are renormalized to sum to 100%. A district scored on 3 of 5 indicators is compared fairly against one scored on all 5 — no penalty for missing data.
                 </div>
-              )}
+              </div>
             </Card>
 
-            {/* PERSUASION INDEX — ACCORDION */}
-            <Card style={{ marginBottom: 24 }}>
-              <div
-                onClick={() => setMethOpen(methOpen === "persuasion" ? null : "persuasion")}
-                style={{ padding: "18px 22px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Indian American Persuasion Index</h3>
-                    <Badge color="#6D28D9" bg="#EDE9FE">0–100</Badge>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
-                    Where campaigns should spend money to move Indian American voters. A district can have 100K Indian Americans and score low if the seat is uncontested.
-                  </p>
+            {/* COMMUNITY DENSITY INDEX — LEGACY */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Community Density Index (CDI)</h3>
+                  <Badge color={C.saffronText} bg={C.saffronBg}>0–100</Badge>
+                  <Badge color={C.textMuted} bg={C.borderLight}>LEGACY</Badge>
                 </div>
-                <div style={{ fontSize: 18, color: C.textMuted, flexShrink: 0, paddingTop: 2, transition: "transform 0.2s", transform: methOpen === "persuasion" ? "rotate(180deg)" : "rotate(0)" }}>▾</div>
-              </div>
-              {methOpen === "persuasion" && (
-                <div style={{ padding: "0 22px 18px", borderTop: `1px solid ${C.borderLight}`, paddingTop: 16 }}>
-                  <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 14px", lineHeight: 1.6 }}>
-                    Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
-                  </p>
-                  {PERSUASION_METHODS.map((m, i) => (
-                    <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < PERSUASION_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-                      <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9", background: "#EDE9FE", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Static composite measuring where Indian Americans are civically and economically active. Captures donor behavior, cultural infrastructure, economic presence, and digital engagement. Visible in district detail view; replaced by EPI as the primary sort metric.
+                </p>
+                {DENSITY_METHODS.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < DENSITY_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: C.saffronText, background: C.saffronBg, padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
                       </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </Card>
 
-            {/* RANKED DISTRICTS — SIDE BY SIDE */}
-            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>District Rankings</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
-              {/* Density rankings */}
-              <Card>
-                <div style={{ padding: "14px 18px 8px", borderBottom: `1px solid ${C.borderLight}` }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.saffronText, fontFamily: font.mono }}>BY DENSITY SCORE</h4>
+            {/* PERSUASION INDEX — FLAT */}
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, fontFamily: font.display, color: C.navy }}>Indian American Persuasion Index</h3>
+                  <Badge color="#6D28D9" bg="#EDE9FE">0–100</Badge>
                 </div>
-                <div style={{ padding: "4px 0" }}>
-                  {[...districts].sort((a, b) => b.densityScore - a.densityScore).map((d, i) => (
-                    <div key={d.id} style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
-                    }}>
-                      <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? C.saffronText : C.textMuted, textAlign: "right" }}>{i + 1}</div>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
-                      <div style={{ flex: 1 }}><DensityBar score={d.densityScore} /></div>
+                <p style={{ margin: "0 0 6px", fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>
+                  Where campaigns should spend money to move Indian American voters. A district can have 100K Indian Americans and score low if the seat is uncontested.
+                </p>
+                <p style={{ fontSize: 12, color: C.textSecondary, margin: "0 0 16px", lineHeight: 1.6 }}>
+                  Cook's PVI tells you how partisan a district is. The Persuasion Index tells you how moveable the Indian American vote is within that district. A district with 30,000 Indian Americans in a toss-up race with evidence of recent swing scores high because every vote matters.
+                </p>
+                {PERSUASION_METHODS.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 14, alignItems: "start", padding: "12px 0", borderBottom: i < PERSUASION_METHODS.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                    <div style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{m.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>{m.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: "#6D28D9", background: "#EDE9FE", padding: "1px 6px", borderRadius: 3 }}>{m.weight}%</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.6 }}>{m.description}</p>
                     </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Persuasion rankings */}
-              <Card>
-                <div style={{ padding: "14px 18px 8px", borderBottom: `1px solid ${C.borderLight}` }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#6D28D9", fontFamily: font.mono }}>BY PERSUASION SCORE</h4>
-                </div>
-                <div style={{ padding: "4px 0" }}>
-                  {[...districts].sort((a, b) => b.persuasionScore - a.persuasionScore).map((d, i) => (
-                    <div key={d.id} style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "8px 16px",
-                      borderBottom: i < districts.length - 1 ? `1px solid ${C.borderLight}` : "none",
-                    }}>
-                      <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: font.mono, color: i < 3 ? "#6D28D9" : C.textMuted, textAlign: "right" }}>{i + 1}</div>
-                      <div style={{ width: 52, fontFamily: font.mono, fontWeight: 700, fontSize: 12, color: d.party === "D" ? C.dem : C.gop }}>{d.id}</div>
-                      <div style={{ flex: 1 }}><PersuasionBar score={d.persuasionScore} /></div>
-                      <Badge color={getRatingColor(d.cook2026)} bg={getRatingBg(d.cook2026)}>{d.cook2026}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
             {/* Key insight callout */}
             <Card style={{ marginBottom: 24, borderLeft: `4px solid #7C3AED`, borderColor: C.border, borderLeftColor: "#7C3AED" }}>
@@ -2327,12 +1987,39 @@ export default function IndianAmericanVoterAtlas() {
               </div>
             </Card>
 
+            {/* Economic Presence Methodology */}
+            <h3 style={{ fontSize: 18, fontWeight: 700, fontFamily: font.display, margin: "0 0 14px", color: C.navy }}>Economic Presence — Data Sources & Methodology</h3>
+            {[
+              { title: "Immigration & Economy", text: "USCIS Yearbook of Immigration Statistics, Tables 3 and 21d (2001\u20132023). No filtering applied \u2014 USCIS tabulates by country of birth as recorded on I-485 and N-400 forms. Department of Labor PERM Disclosure Data (FY2008\u2013FY2024), parsed by fiscal year and mapped to congressional districts. Census ACS income, poverty, labor force, and educational attainment data." },
+              { title: "Mortgage & Wealth (HMDA)", text: "CFPB Home Mortgage Disclosure Act (HMDA) data, 2018\u20132024, filtered to race code 21 (Asian Indian) using exact federal classification. Most methodologically precise economic signal in the dataset \u2014 race coding is borrower-reported and federally standardized." },
+              { title: "Business Ownership (ABS/SBA)", text: "Census Annual Business Survey (ABS) 2023 — reports \"Asian\" as a single category, not Asian Indian separately. SBA 7(a) and 504 loan FOIA data, filtered using Indian surname analysis on business names (floor estimate; surname-on-business-name significantly undercounts). Surname methodology: Ramakrishnan et al. (AAPI Data); false positive rate ~8\u201312%." },
+              { title: "Scientific Research (NIH)", text: "NIH Reporter API (FY2008\u20132023), PI last names filtered using Indian surname analysis. NIH does not collect PI race/ethnicity in public data. NSF integration pending." },
+              { title: "Electoral & Political Economy (FEC)", text: "FEC individual contribution data (2008\u20132024), 9 election cycles, Indian surname analysis. FEC covers contributions >$200 only." },
+            ].map((sec, i) => (
+              <Card key={i} style={{ marginBottom: 10 }}>
+                <div style={{ padding: "14px 18px" }}>
+                  <h4 style={{ margin: "0 0 6px", fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>{sec.title}</h4>
+                  <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.7, fontFamily: font.body }}>{sec.text}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Known Limitations */}
+            <Card style={{ marginBottom: 24, marginTop: 16, borderLeft: `4px solid ${C.saffron}`, borderColor: C.border, borderLeftColor: C.saffron }}>
+              <div style={{ padding: "16px 20px" }}>
+                <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: C.navy, fontFamily: font.display }}>Known Limitations</h4>
+                <p style={{ margin: 0, fontSize: 12, color: C.textSecondary, lineHeight: 1.7, fontFamily: font.body }}>
+                  HMDA race coding relies on borrower self-identification and lender observation; some mixed-race borrowers may be coded differently across applications. HMDA excludes cash purchases and private loans. SBA surname filtering on business names significantly undercounts Indian-owned firms where the business name does not contain the owner's surname — treat SBA figures as minimums. NIH surname analysis will undercount researchers who publish or register under anglicized or married names.
+                </p>
+              </div>
+            </Card>
+
             {/* Data sources */}
             <Card style={{ marginTop: 24 }}>
               <div style={{ padding: "18px 22px" }}>
                 <h4 style={{ fontSize: 14, fontWeight: 700, color: C.navy, margin: "0 0 12px" }}>Data Sources</h4>
                 <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.8, fontFamily: font.body }}>
-                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · Google Trends API · Google Places API · USCIS H-1B employer data · DOL OFLC PERM Disclosure Data (FY2008–FY2024) · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
+                  Census ACS 5-Year Estimates (data.census.gov, Table B02015) · Cook Political Report 2026 Ratings & PVI · MIT Election Lab precinct-level returns · AAPI Data CVAP estimates & voter surveys · FEC individual contributions bulk data · HMDA mortgage origination data · Census Annual Business Survey (ABS) · SBA 7(a) & 504 loan data · NIH Reporter grants (surname methodology) · Google Trends API · Google Places API · USCIS H-1B employer data · DOL OFLC PERM Disclosure Data (FY2008–FY2024) · FBI UCR/NIBRS hate crime statistics · Sikh Coalition Report Hate · CoHNA Incident Tracker · Stop AAPI Hate · Hindu American Foundation · CA Civil Rights Dept Hotline · ADL H.E.A.T. Map
                 </div>
               </div>
             </Card>
@@ -2344,7 +2031,7 @@ export default function IndianAmericanVoterAtlas() {
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: isMobile ? "20px 16px" : "24px 32px", background: C.surface }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 11, color: C.textMuted, fontFamily: font.mono, lineHeight: 1.8 }}>
-            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, AAPI Data, FBI UCR, DOL PERM<br />
+            Indian American Voter Atlas · Data: ACS 2019–2023, Cook Political Report, FEC, HMDA, ABS, SBA, NIH, AAPI Data, FBI UCR, DOL PERM<br />
             Methodology: Community Density Index v1.0 · Persuasion Index v1.0 · Not affiliated with any political campaign or party<br />
             Published by <span style={{ color: C.saffronText }}>Anang Mittal</span> · Built for civic engagement and public interest research
           </div>

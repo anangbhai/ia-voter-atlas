@@ -17,7 +17,7 @@ The Indian American Voter Atlas is an interactive dashboard that synthesizes Cen
 | **House Districts** | 24 key congressional districts with population data, competitiveness ratings, and two proprietary index scores |
 | **Senate 2026** | 15 Senate battleground races with Indian American population by state |
 | **2024 Election** | Presidential vote trends (2004–2024), gender-age breakdowns, party ID shifts, precinct-level swing data, IAAS 2026 Trump approval |
-| **PERM & Green Card Backlog** | DOL PERM labor certification data (FY2008–2024) by state and district — employer counts, average salaries, top filing companies |
+| **Economic Presence** | Immigration pipeline (PERM + USCIS), household wealth (HMDA), business ownership (ACS/ABS/SBA), research & innovation (NIH), political contributions (FEC) |
 | **Economic Contribution** | Median income, labor force participation, Fortune 500 leadership, unicorn founders |
 | **Community Safety** | FBI hate crime trends (2015–2024), temple/gurdwara incident log, cross-referenced data sources |
 | **Discourse Monitor** | Event timeline and narrative tracker for legislation, rhetoric, incidents, and advocacy |
