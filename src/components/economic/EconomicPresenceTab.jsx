@@ -163,7 +163,9 @@ function OverviewSummary({ economicData, permDistrictData, isMobile, onNavigate 
           sectionKey="immigration"
           icon={"\uD83D\uDCCB"}
           title="Immigration Pipeline"
-          stat={permStats.avgWage ? `$${permStats.avgWage.toLocaleString()} avg offered wage` : `${permStats.totalIndia.toLocaleString()} PERM certifications`}
+          stat={permStats.totalIndia > 0 || uscisStats
+            ? (permStats.avgWage ? `$${permStats.avgWage.toLocaleString()} avg offered wage` : `${permStats.totalIndia.toLocaleString()} PERM certifications`)
+            : "—"}
           detail={
             permStats.totalIndia > 0
               ? `${permStats.totalIndia.toLocaleString()} India-born PERM certifications across ${permStats.districtCount} districts (${permStats.yearRange}).${uscisStats ? ` ${uscisStats.totalNat.toLocaleString()} naturalizations since 2001.` : ""}`
@@ -283,20 +285,30 @@ export function EconomicPresenceTab({
         />
       )}
 
-      {activeSection === "wealth" && (
-        <HouseholdWealth data={economicData} isMobile={isMobile} />
-      )}
+      {activeSection !== "overview" && activeSection !== "immigration" && economicData.loading ? (
+        <Card>
+          <div style={{ padding: "40px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.textMuted, fontFamily: font.mono }}>Loading economic data...</div>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {activeSection === "wealth" && (
+            <HouseholdWealth data={economicData} isMobile={isMobile} />
+          )}
 
-      {activeSection === "business" && (
-        <BusinessOwnership data={economicData} isMobile={isMobile} />
-      )}
+          {activeSection === "business" && (
+            <BusinessOwnership data={economicData} isMobile={isMobile} />
+          )}
 
-      {activeSection === "research" && (
-        <ResearchInnovation data={economicData} isMobile={isMobile} />
-      )}
+          {activeSection === "research" && (
+            <ResearchInnovation data={economicData} isMobile={isMobile} />
+          )}
 
-      {activeSection === "political" && (
-        <PoliticalEconomy data={economicData} isMobile={isMobile} />
+          {activeSection === "political" && (
+            <PoliticalEconomy data={economicData} isMobile={isMobile} />
+          )}
+        </>
       )}
     </div>
   );
